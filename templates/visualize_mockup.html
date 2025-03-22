@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Real-Time Visualization</h2>
+
+<div style="position: relative; display: inline-block;">
+  <!-- Boxing silhouette image (PNG or SVG) -->
+  <img src="{{ url_for('static', filename='images/boxing-3632074_1920.png') }}" alt="Boxing Silhouette" style="width: 300px;">
+  
+  <!-- Marker: its position will change based on event -->
+  <div id="marker" style="position: absolute; width: 20px; height: 20px; background: red; border-radius: 50%; display: none;"></div>
+  
+  <!-- Label to display force sensor value(s) -->
+  <div id="forceLabel" style="position: absolute; color: red; font-weight: bold; display: none;"></div>
+</div>
+
+<p>Latest Event: <span id="latestEvent">N/A</span></p>
+
+{% if training_active %}
+  <p>A training round is currently in progress.</p>
+  <form method="POST" action="{{ url_for('stop') }}">
+    <button type="submit" class="btn btn-danger">Stop and Save Round</button>
+  </form>
+{% else %}
+  <p>No training round in progress.</p>
+{% endif %}
+
+<script>
+  // Open SSE connection to receive real-time sensor updates.
+  const eventSource = new EventSource("/stream");
+  
+  eventSource.onmessage = function(event) {
+    let data = JSON.parse(event.data);
+    // If heartbeat, do nothing.
+    if (data.heartbeat) return;
+    
+    let sensorEvent = data.event;      // "Head" or "Body"
+    let forceValues = data.forces;       // array of force sensor values
+    let marker = document.getElementById("marker");
+    let forceLabel = document.getElementById("forceLabel");
+    let latestEventSpan = document.getElementById("latestEvent");
+    
+    if (!sensorEvent) {
+      marker.style.display = "none";
+      forceLabel.style.display = "none";
+      latestEventSpan.textContent = "N/A";
+      return;
+    }
+    
+    // Update event text
+    latestEventSpan.textContent = sensorEvent;
+    
+    // Show marker and label
+    marker.style.display = "block";
+    forceLabel.style.display = "block";
+    
+    // Position marker and label based on event type
+    if (sensorEvent === "Head") {
+      // Adjust these values to match the head position on your image
+      marker.style.top = "5%";
+      marker.style.left = "35%";
+      forceLabel.style.top = "5%";
+      forceLabel.style.left = "55%";
+    } else {  // "Body"
+      // Adjust these values to match the body position on your image
+      marker.style.top = "35%";
+      marker.style.left = "48%";
+      forceLabel.style.top = "35%";
+      forceLabel.style.left = "55%";
+    }
+    
+    // Display force sensor values (join array into string)
+    forceLabel.textContent = "Force: " + (forceValues ? forceValues.join(", ") : "");
+  };
+
+  eventSource.onerror = function(err) {
+    console.error("SSE error:", err);
+  };
+</script>
+{% endblock %}

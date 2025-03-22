@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ESP Boxing Training Dashboard</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+  <div class="container mt-4">
+    <h1>ESP Boxing Training Dashboard</h1>
+    <nav>
+      <a href="{{ url_for('index') }}">Home</a> |
+      <a href="{{ url_for('settings') }}">Settings</a> |
+      <a href="{{ url_for('record') }}">Record Round</a> |
+      <a href="{{ url_for('visualize_mockup') }}">Visualize</a> |
+      <a href="{{ url_for('history') }}">History</a> |
+      <a href="{{ url_for('online') }}">Online Sensors</a>
+    </nav>
+    <hr>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-success">
+          {% for message in messages %}
+            <p>{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+  <footer class="container mt-4">
+    <p>&copy; {{ current_year }} Ligament Studio</p>
+  </footer>
+</body>
+</html>

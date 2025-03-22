@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Record Training Round</h2>
+{% if training_active %}
+  <p>A training round is currently in progress.</p>
+  <form method="POST" action="{{ url_for('stop') }}">
+    <button type="submit" class="btn btn-danger">Stop and Save Round</button>
+  </form>
+  <p><a href="{{ url_for('visualize_mockup') }}" class="btn btn-info mt-3">View Real-Time Visualization</a></p>
+{% else %}
+  <form method="POST">
+    <div class="form-group">
+      <label for="training_name">Training Name</label>
+      <input type="text" class="form-control" id="training_name" name="training_name" value="{{ config.training_name }}">
+    </div>
+    <div class="form-group">
+      <label for="sensor_id">Sensor ID</label>
+      <!-- Use the datalist attribute to enable auto-collection -->
+      <input type="text" class="form-control" id="sensor_id" name="sensor_id" value="{{ config.sensor_id }}" list="onlineSensors">
+      <datalist id="onlineSensors">
+        {% for sensor in online_sensors %}
+          <option value="{{ sensor.sensor_id }}">{{ sensor.sensor_id }} (Last seen: {{ sensor.last_seen }})</option>
+        {% endfor %}
+      </datalist>
+    </div>
+    <button type="submit" class="btn btn-success">Start Recording Round</button>
+  </form>
+  <p>No training round in progress.</p>
+{% endif %}
+{% endblock %}

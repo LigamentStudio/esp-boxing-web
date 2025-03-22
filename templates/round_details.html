@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Training Round Details</h2>
+<p>
+  <strong>Training Name:</strong> {{ round.training_name }}<br>
+  <strong>Sensor ID:</strong> {{ round.sensor_id }}<br>
+  <strong>Start Time:</strong> {{ round.start_time }}<br>
+  <strong>Stop Time:</strong> {{ round.stop_time }}
+</p>
+<h3>Sensor Events</h3>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Timestamp</th>
+      <th>Reed Value</th>
+      <th>Force 1</th>
+      <th>Force 2</th>
+      <th>Force 3</th>
+      <th>Force 4</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for sensor_event in sensor_events %}
+      <tr>
+        <td>{{ sensor_event.timestamp }}</td>
+        <td>{{ sensor_event.reed_value }}</td>
+        {% for i in range(4) %}
+          <td>
+            {% if sensor_event.forces_list|length > i %}
+              {{ sensor_event.forces_list[i] }}
+            {% else %}
+              --
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<a href="{{ url_for('history') }}" class="btn btn-secondary">Back to History</a>
+{% endblock %}

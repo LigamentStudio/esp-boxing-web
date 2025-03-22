@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>MQTT Configuration</h2>
+<form method="post" action="{{ url_for('settings') }}">
+  <div class="form-group">
+    <label for="mqtt_broker">MQTT Broker:</label>
+    <input type="text" class="form-control" id="mqtt_broker" name="mqtt_broker" value="{{ config.get('mqtt_broker', 'broker.mqtt.cool') }}">
+  </div>
+  <div class="form-group">
+    <label for="mqtt_port">MQTT Port:</label>
+    <input type="number" class="form-control" id="mqtt_port" name="mqtt_port" value="{{ config.get('mqtt_port', '1883') }}">
+  </div>
+  <div>
+    <button type="submit" class="btn btn-success">Save Settings</button>
+  </div>
+</form>
+{% endblock %}
