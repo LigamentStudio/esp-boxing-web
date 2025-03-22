@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Training History</h2>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Training Name</th>
+      <th>Sensor ID</th>
+      <th>Start Time</th>
+      <th>Stop Time</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for round in rounds %}
+      <tr>
+        <td>{{ round.id }}</td>
+        <td>{{ round.training_name }}</td>
+        <td>{{ round.sensor_id }}</td>
+        <td>{{ round.start_time }}</td>
+        <td>{{ round.stop_time }}</td>
+        <td>
+          <a href="{{ url_for('round_details', round_id=round.id) }}" class="btn btn-info btn-sm">Details</a>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

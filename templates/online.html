@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Currently Online Sensors</h2>
+  {% if online_list %}
+    <ul>
+      {% for sensor in online_list %}
+        <li>Sensor ID: {{ sensor.sensor_id }} - Last Seen: {{ sensor.last_seen }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No sensors online in the last 60 seconds.</p>
+  {% endif %}
+{% endblock %}
