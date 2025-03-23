@@ -242,8 +242,8 @@ def settings():
 def record():
     global current_training_round_id, online_sensors
     if request.method == 'POST':
-        training_name = request.form.get('training_name', 'Default Training')
-        sensor_id = request.form.get('sensor_id', '64E833ACC838652B')
+        training_name = request.form.get('training_name', 'Training Name')
+        sensor_id = request.form.get('sensor_id', '')
         with get_db_connection() as conn:
             conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else 
                          "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
