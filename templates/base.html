@@ -28,8 +28,14 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </div>
-  <footer class="container mt-4">
-    <p>&copy; {{ current_year }} Ligament Studio</p>
+  <footer class="footer bg-light mt-4 py-3">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-6 text-left">
+          <p class="mb-0">&copy; {{ current_year }} Ligament Studio.</p>
+        </div>
+      </div>
+    </div>
   </footer>
 </body>
 </html>

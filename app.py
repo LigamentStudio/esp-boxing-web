@@ -201,12 +201,17 @@ mqtt_thread_instance = threading.Thread(target=mqtt_thread)
 mqtt_thread_instance.daemon = True
 mqtt_thread_instance.start()
 
+@app.context_processor
+def inject_current_year():
+    from datetime import datetime
+    return {'current_year': datetime.now().year}
+
 ########################################
 # Routes
 ########################################
 @app.route('/')
 def index():
-    return render_template('index.html', current_year=datetime.now(timezone.utc).year)
+    return render_template('index.html', current_year=datetime.now().year)
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
@@ -350,10 +355,19 @@ def visualize_mockup():
 
 @app.route('/history')
 def history():
+    training_name_filter = request.args.get('training_name', '').strip()
+    query = "SELECT * FROM training_round"
+    params = []
+    if training_name_filter:
+        query += " WHERE training_name LIKE ?"
+        params.append(f"%{training_name_filter}%")
+    query += " ORDER BY start_time DESC"
+    
     with get_db_connection() as conn:
-        cur = conn.execute("SELECT * FROM training_round ORDER BY start_time DESC")
+        cur = conn.execute(query, params)
         rounds = cur.fetchall()
     return render_template('history.html', rounds=rounds)
+
 
 @app.route('/history/<int:round_id>')
 def round_details(round_id):
@@ -374,6 +388,18 @@ def round_details(round_id):
             d["forces_list"] = []
         processed_events.append(d)
     return render_template('round_details.html', round=round_info, sensor_events=processed_events)
+
+@app.route('/delete/<int:round_id>', methods=['POST'])
+def delete_round(round_id):
+    with get_db_connection() as conn:
+        # Optionally, delete sensor_history records linked to the round
+        conn.execute("DELETE FROM sensor_history WHERE training_round_id = ?", (round_id,))
+        # Delete the training round
+        conn.execute("DELETE FROM training_round WHERE id = ?", (round_id,))
+        conn.commit()
+    flash("Training round and associated sensor events deleted successfully!")
+    return redirect(url_for('history'))
+
 
 @app.route('/online')
 def online():

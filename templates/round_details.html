@@ -8,6 +8,12 @@
   <strong>Start Time:</strong> {{ round.start_time }}<br>
   <strong>Stop Time:</strong> {{ round.stop_time }}
 </p>
+
+<!-- Delete button -->
+<form method="POST" action="{{ url_for('delete_round', round_id=round.id) }}" onsubmit="return confirm('Are you sure you want to delete this training round?');">
+  <button type="submit" class="btn btn-danger">Delete Round</button>
+</form>
+
 <h3>Sensor Events</h3>
 <table class="table table-striped">
   <thead>

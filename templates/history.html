@@ -2,6 +2,16 @@
 
 {% block content %}
 <h2>Training History</h2>
+
+<!-- Filter Form -->
+<form method="GET" action="{{ url_for('history') }}" class="form-inline mb-3">
+  <div class="form-group">
+    <input type="text" name="training_name" class="form-control" placeholder="Filter by Training Name" value="{{ request.args.get('training_name', '') }}">
+  </div>
+  <button type="submit" class="btn btn-primary ml-2">Filter</button>
+  <a href="{{ url_for('history') }}" class="btn btn-secondary ml-2">Clear</a>
+</form>
+
 <table class="table table-striped">
   <thead>
     <tr>
