@@ -4,9 +4,22 @@
   <meta charset="UTF-8">
   <title>ESP Boxing Training Dashboard</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    .content {
+      flex: 1;
+    }
+  </style>
 </head>
 <body>
-  <div class="container mt-4">
+  <div class="container mt-4 content">
     <h1>ESP Boxing Training Dashboard</h1>
     <nav>
       <a href="{{ url_for('index') }}">Home</a> |
@@ -28,7 +41,7 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </div>
-  <footer class="footer bg-light mt-4 py-3">
+  <footer class="footer bg-light py-3">
     <div class="container">
       <div class="row">
         <div class="col-md-6 text-left">

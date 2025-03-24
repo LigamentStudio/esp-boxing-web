@@ -356,18 +356,39 @@ def visualize_mockup():
 @app.route('/history')
 def history():
     training_name_filter = request.args.get('training_name', '').strip()
+    sensor_id_filter = request.args.get('sensor_id', '').strip()
+    sort_by = request.args.get('sort_by', 'start_time')
+    sort_order = request.args.get('sort_order', 'desc').lower()
+
+    # Only allow sorting by these columns
+    allowed_columns = ['id', 'training_name', 'sensor_id', 'start_time', 'stop_time']
+    if sort_by not in allowed_columns:
+        sort_by = 'start_time'
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'
+
     query = "SELECT * FROM training_round"
+    conditions = []
     params = []
+    
     if training_name_filter:
-        query += " WHERE training_name LIKE ?"
+        conditions.append("training_name LIKE ?")
         params.append(f"%{training_name_filter}%")
-    query += " ORDER BY start_time DESC"
+    
+    if sensor_id_filter:
+        conditions.append("sensor_id LIKE ?")
+        params.append(f"%{sensor_id_filter}%")
+    
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    
+    query += f" ORDER BY {sort_by} {sort_order.upper()}"
     
     with get_db_connection() as conn:
         cur = conn.execute(query, params)
         rounds = cur.fetchall()
+    
     return render_template('history.html', rounds=rounds)
-
 
 @app.route('/history/<int:round_id>')
 def round_details(round_id):
@@ -399,7 +420,6 @@ def delete_round(round_id):
         conn.commit()
     flash("Training round and associated sensor events deleted successfully!")
     return redirect(url_for('history'))
-
 
 @app.route('/online')
 def online():

@@ -8,18 +8,102 @@
   <div class="form-group">
     <input type="text" name="training_name" class="form-control" placeholder="Filter by Training Name" value="{{ request.args.get('training_name', '') }}">
   </div>
+  <div class="form-group ml-2">
+    <input type="text" name="sensor_id" class="form-control" placeholder="Filter by Sensor ID" value="{{ request.args.get('sensor_id', '') }}">
+  </div>
+  <!-- Persist current sorting settings -->
+  <input type="hidden" name="sort_by" value="{{ request.args.get('sort_by', 'start_time') }}">
+  <input type="hidden" name="sort_order" value="{{ request.args.get('sort_order', 'desc') }}">
   <button type="submit" class="btn btn-primary ml-2">Filter</button>
   <a href="{{ url_for('history') }}" class="btn btn-secondary ml-2">Clear</a>
 </form>
 
+{% set current_sort_by = request.args.get('sort_by', 'start_time') %}
+{% set current_sort_order = request.args.get('sort_order', 'desc') %}
+
 <table class="table table-striped">
   <thead>
     <tr>
-      <th>ID</th>
-      <th>Training Name</th>
-      <th>Sensor ID</th>
-      <th>Start Time</th>
-      <th>Stop Time</th>
+      <th>
+        <a href="{{ url_for('history', 
+                             training_name=request.args.get('training_name', ''), 
+                             sensor_id=request.args.get('sensor_id', ''), 
+                             sort_by='id', 
+                             sort_order='asc' if current_sort_by != 'id' or current_sort_order == 'desc' else 'desc') }}">
+          ID
+          {% if current_sort_by == 'id' %}
+            {% if current_sort_order == 'asc' %}
+              &#9650;
+            {% else %}
+              &#9660;
+            {% endif %}
+          {% endif %}
+        </a>
+      </th>
+      <th>
+        <a href="{{ url_for('history', 
+                             training_name=request.args.get('training_name', ''), 
+                             sensor_id=request.args.get('sensor_id', ''), 
+                             sort_by='training_name', 
+                             sort_order='asc' if current_sort_by != 'training_name' or current_sort_order == 'desc' else 'desc') }}">
+          Training Name
+          {% if current_sort_by == 'training_name' %}
+            {% if current_sort_order == 'asc' %}
+              &#9650;
+            {% else %}
+              &#9660;
+            {% endif %}
+          {% endif %}
+        </a>
+      </th>
+      <th>
+        <a href="{{ url_for('history', 
+                             training_name=request.args.get('training_name', ''), 
+                             sensor_id=request.args.get('sensor_id', ''), 
+                             sort_by='sensor_id', 
+                             sort_order='asc' if current_sort_by != 'sensor_id' or current_sort_order == 'desc' else 'desc') }}">
+          Sensor ID
+          {% if current_sort_by == 'sensor_id' %}
+            {% if current_sort_order == 'asc' %}
+              &#9650;
+            {% else %}
+              &#9660;
+            {% endif %}
+          {% endif %}
+        </a>
+      </th>
+      <th>
+        <a href="{{ url_for('history', 
+                             training_name=request.args.get('training_name', ''), 
+                             sensor_id=request.args.get('sensor_id', ''), 
+                             sort_by='start_time', 
+                             sort_order='asc' if current_sort_by != 'start_time' or current_sort_order == 'desc' else 'desc') }}">
+          Start Time
+          {% if current_sort_by == 'start_time' %}
+            {% if current_sort_order == 'asc' %}
+              &#9650;
+            {% else %}
+              &#9660;
+            {% endif %}
+          {% endif %}
+        </a>
+      </th>
+      <th>
+        <a href="{{ url_for('history', 
+                             training_name=request.args.get('training_name', ''), 
+                             sensor_id=request.args.get('sensor_id', ''), 
+                             sort_by='stop_time', 
+                             sort_order='asc' if current_sort_by != 'stop_time' or current_sort_order == 'desc' else 'desc') }}">
+          Stop Time
+          {% if current_sort_by == 'stop_time' %}
+            {% if current_sort_order == 'asc' %}
+              &#9650;
+            {% else %}
+              &#9660;
+            {% endif %}
+          {% endif %}
+        </a>
+      </th>
       <th>Actions</th>
     </tr>
   </thead>
