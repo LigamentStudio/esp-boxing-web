@@ -83,8 +83,8 @@ def init_db():
             )
         ''')
         # Insert default config values
-        insert_config(conn, 'training_name', 'Default Training')
-        insert_config(conn, 'sensor_id', '64E833ACC838652B')
+        insert_config(conn, 'training_name', 'Training Name')
+        insert_config(conn, 'sensor_id', '')
         insert_config(conn, 'mqtt_broker', 'broker.mqtt.cool')
         insert_config(conn, 'mqtt_port', '1883')
 
@@ -211,8 +211,8 @@ def index():
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     if request.method == 'POST':
-        training_name = request.form.get('training_name', 'Default Training')
-        sensor_id = request.form.get('sensor_id', '64E833ACC838652B')
+        training_name = request.form.get('training_name', 'Training Name')
+        sensor_id = request.form.get('sensor_id', '')
         mqtt_broker = request.form.get('mqtt_broker', 'broker.mqtt.cool')
         mqtt_port = request.form.get('mqtt_port', '1883')
         with get_db_connection() as conn:
@@ -287,14 +287,17 @@ def start():
         training_name = row['value'] if row else 'Default Training'
         cur = conn.execute("SELECT value FROM config WHERE key = 'sensor_id'")
         row = cur.fetchone()
-        sensor_id = row['value'] if row else '64E833ACC838652B'
+        sensor_id = row['value'] if row else 'XXXXXXXXXXXXXXXX'
         start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         cur = conn.execute(
             "INSERT INTO training_round (training_name, sensor_id, start_time) VALUES (?, ?, ?)",
             (training_name, sensor_id, start_time)
+        ) if USE_SQLITE else conn.execute(
+            "INSERT INTO training_round (training_name, sensor_id, start_time) VALUES (%s, %s, %s) RETURNING id",
+            (training_name, sensor_id, start_time)
         )
         conn.commit()
-        current_training_round_id = cur.lastrowid  if USE_SQLITE else cur.fetchone()['id']  # For PostgreSQL, you might need to adjust
+        current_training_round_id = cur.lastrowid  if USE_SQLITE else cur.fetchone()['id']
     flash("Training round started!")
     return redirect(url_for('record'))
 
