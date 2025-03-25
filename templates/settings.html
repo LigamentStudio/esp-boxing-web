@@ -1,18 +1,47 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>MQTT Configuration</h2>
+<h2>การตั้งค่า</h2>
+
 <form method="post" action="{{ url_for('settings') }}">
-  <div class="form-group">
-    <label for="mqtt_broker">MQTT Broker:</label>
-    <input type="text" class="form-control" id="mqtt_broker" name="mqtt_broker" value="{{ config.get('mqtt_broker', 'broker.mqtt.cool') }}">
-  </div>
-  <div class="form-group">
-    <label for="mqtt_port">MQTT Port:</label>
-    <input type="number" class="form-control" id="mqtt_port" name="mqtt_port" value="{{ config.get('mqtt_port', '1883') }}">
-  </div>
-  <div>
-    <button type="submit" class="btn btn-success">Save Settings</button>
-  </div>
+    <h3>ตั้งค่า MQTT</h3>
+    <div class="form-group">
+      <label for="mqtt_broker">MQTT Broker:</label>
+      <input type="text" class="form-control" id="mqtt_broker" name="mqtt_broker" value="{{ config.get('mqtt_broker', 'broker.mqtt.cool') }}">
+    </div>
+    <div class="form-group">
+      <label for="mqtt_port">พอร์ต MQTT:</label>
+      <input type="number" class="form-control" id="mqtt_port" name="mqtt_port" value="{{ config.get('mqtt_port', '1883') }}">
+    </div>
+
+    <h3>การตั้งค่าป้ายเซ็นเซอร์</h3>
+
+    {% for i in range(1, 5) %}
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="sensor_label{{ i }}">เซ็นเซอร์ {{ i }}</label>
+          <input type="text" class="form-control" id="sensor_label{{ i }}" name="sensor_label{{ i }}" 
+                  value="{{ config.get('sensor_label' ~ i, 'เซ็นเซอร์ ' ~ i) }}">
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="default_position_sensor{{ i }}">ตำแหน่งเริ่มต้นเซ็นเซอร์ {{ i }}</label>
+          <select class="form-control" id="default_position_sensor{{ i }}" name="default_position_sensor{{ i }}">
+            <option value="">-- ไม่เลือก --</option>
+            {% for pos in ['1', '2', '3', '4'] %}
+            <option value="{{ pos }}" label="A{{ pos }}" {% if config.get('default_position_sensor' ~ i) == pos %}selected{% endif %}>
+              {{ pos }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+  <button type="submit" class="btn btn-success mt-3">บันทึกการตั้งค่า</button>
 </form>
+
 {% endblock %}

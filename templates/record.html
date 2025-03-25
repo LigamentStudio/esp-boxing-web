@@ -1,31 +1,125 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Record Training Round</h2>
+<h2>บันทึกรอบการฝึก</h2>
+
 {% if training_active %}
-  <p>A training round is currently in progress.</p>
+  <p>ขณะนี้กำลังดำเนินการฝึกอยู่</p>
   <form method="POST" action="{{ url_for('stop') }}">
-    <button type="submit" class="btn btn-danger">Stop and Save Round</button>
+    <button type="submit" class="btn btn-danger">หยุดและบันทึกรอบ</button>
   </form>
-  <p><a href="{{ url_for('visualize_mockup') }}" class="btn btn-info mt-3">View Real-Time Visualization</a></p>
+  <p><a href="{{ url_for('visualize_mockup') }}" class="btn btn-info mt-3">ดูการแสดงผลแบบเรียลไทม์</a></p>
 {% else %}
-  <form method="POST">
+  <form method="POST" onsubmit="return validateForm()">
     <div class="form-group">
-      <label for="training_name">Training Name</label>
+      <label for="training_name">ชื่อผู้ฝึก</label>
       <input type="text" class="form-control" id="training_name" name="training_name" value="{{ config.training_name }}">
     </div>
     <div class="form-group">
-      <label for="sensor_id">Sensor ID</label>
-      <!-- Use the datalist attribute to enable auto-collection -->
+      <label for="sensor_id">รหัสโมดูล</label>
       <input type="text" class="form-control" id="sensor_id" name="sensor_id" value="{{ config.sensor_id }}" list="onlineSensors">
       <datalist id="onlineSensors">
         {% for sensor in online_sensors %}
-          <option value="{{ sensor.sensor_id }}">{{ sensor.sensor_id }} (Last seen: {{ sensor.last_seen }})</option>
+          <option value="{{ sensor.sensor_id }}">{{ sensor.sensor_id }} (พบล่าสุด: {{ sensor.last_seen }})</option>
         {% endfor %}
       </datalist>
     </div>
-    <button type="submit" class="btn btn-success">Start Recording Round</button>
+
+    <h4>ตั้งค่าตำแหน่งเซ็นเซอร์</h4>
+    {% set sensor_options = ['1', '2', '3', '4'] %}
+    {% set sensor_labels = {
+      'sensor_label2': config.get('sensor_label2', 'ลำตัว'),
+      'sensor_label3': config.get('sensor_label3', 'ท้อง'),
+      'sensor_label4': config.get('sensor_label4', 'ขา')
+    } %}
+    {% set sensor_positions = {
+      'sensor_label1': config.get('default_position_sensor1', ''),
+      'sensor_label2': config.get('default_position_sensor2', ''),
+      'sensor_label3': config.get('default_position_sensor3', ''),
+      'sensor_label4': config.get('default_position_sensor4', '')
+    } %}
+
+    <div id="warningMessage" class="alert alert-warning" style="display: none;">
+      ⚠ กรุณาเลือกเซ็นเซอร์ให้ครบทุกตำแหน่ง!
+    </div>
+
+    <div class="form-group">
+      <label for="sensor_label1">{{ config.get('sensor_label1', 'หัว') }}</label>
+      <select class="form-control sensor-select" id="sensor_label1" name="sensor_label1">
+        <option value="">-- ไม่เลือก --</option>
+        {% for sensor in sensor_options %}
+          <option value="{{ sensor }}" label="A{{ sensor }}" {% if sensor_positions['sensor_label1'] == sensor %}selected{% endif %}>
+            {{ sensor }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    {% for key, label in sensor_labels.items() %}
+    <div class="form-group">
+      <label for="{{ key }}">{{ label }}</label>
+      <select class="form-control sensor-select sensor-select-n" id="{{ key }}" name="{{ key }}">
+        <option value="">-- ไม่เลือก --</option>
+        {% for sensor in sensor_options %}
+          <option value="{{ sensor }}" label="A{{ sensor }}" {% if sensor_positions[key] == sensor %}selected{% endif %}>
+            {{ sensor }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-success">เริ่มบันทึกรอบ</button>
   </form>
-  <p>No training round in progress.</p>
+
+  <p>ไม่มีการฝึกที่กำลังดำเนินการ</p>
 {% endif %}
+
+<script>
+  function validateForm() {
+    let selections = new Set();
+    let isValid = true;
+
+    document.querySelectorAll('.sensor-select-n').forEach(select => {
+      let value = select.value;
+      if (value === "") {
+        isValid = false;
+      }
+      selections.add(value);
+    });
+
+    // if (!isValid || selections.has("")) {
+    //   document.getElementById("warningMessage").style.display = "block";
+    //   return false;
+    // } else {
+    //   document.getElementById("warningMessage").style.display = "none";
+    //   return true;
+    // }
+  }
+
+  function updateSensorOptions() {
+    let selectedValues = new Set();
+    document.querySelectorAll('.sensor-select-n').forEach(select => {
+      if (select.value !== "") selectedValues.add(select.value);
+    });
+
+    document.querySelectorAll('.sensor-select-n').forEach(select => {
+      let currentValue = select.value;
+      select.querySelectorAll('option').forEach(option => {
+        if (option.value !== "" && selectedValues.has(option.value) && option.value !== currentValue) {
+          option.disabled = true;
+        } else {
+          option.disabled = false;
+        }
+      });
+    });
+  }
+
+  document.querySelectorAll('.sensor-select-n').forEach(select => {
+    select.addEventListener('change', updateSensorOptions);
+  });
+
+  window.onload = updateSensorOptions;
+</script>
+
 {% endblock %}

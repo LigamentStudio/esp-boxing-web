@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Training History</h2>
+<h2>ประวัติการฝึก</h2>
 
-<!-- Filter Form -->
+<!-- แบบฟอร์มกรองข้อมูล -->
 <form method="GET" action="{{ url_for('history') }}" class="form-inline mb-3">
   <div class="form-group">
-    <input type="text" name="training_name" class="form-control" placeholder="Filter by Training Name" value="{{ request.args.get('training_name', '') }}">
+    <input type="text" name="training_name" class="form-control" placeholder="กรองตามชื่อการฝึก" value="{{ request.args.get('training_name', '') }}">
   </div>
   <div class="form-group ml-2">
-    <input type="text" name="sensor_id" class="form-control" placeholder="Filter by Sensor ID" value="{{ request.args.get('sensor_id', '') }}">
+    <input type="text" name="sensor_id" class="form-control" placeholder="กรองตามรหัสเซ็นเซอร์" value="{{ request.args.get('sensor_id', '') }}">
   </div>
-  <!-- Persist current sorting settings -->
+  <!-- เก็บค่าการจัดเรียงปัจจุบันไว้ -->
   <input type="hidden" name="sort_by" value="{{ request.args.get('sort_by', 'start_time') }}">
   <input type="hidden" name="sort_order" value="{{ request.args.get('sort_order', 'desc') }}">
-  <button type="submit" class="btn btn-primary ml-2">Filter</button>
-  <a href="{{ url_for('history') }}" class="btn btn-secondary ml-2">Clear</a>
+  <button type="submit" class="btn btn-primary ml-2">กรอง</button>
+  <a href="{{ url_for('history') }}" class="btn btn-secondary ml-2">ล้าง</a>
 </form>
 
 {% set current_sort_by = request.args.get('sort_by', 'start_time') %}
@@ -30,7 +30,7 @@
                              sensor_id=request.args.get('sensor_id', ''), 
                              sort_by='id', 
                              sort_order='asc' if current_sort_by != 'id' or current_sort_order == 'desc' else 'desc') }}">
-          ID
+          รหัส
           {% if current_sort_by == 'id' %}
             {% if current_sort_order == 'asc' %}
               &#9650;
@@ -46,7 +46,7 @@
                              sensor_id=request.args.get('sensor_id', ''), 
                              sort_by='training_name', 
                              sort_order='asc' if current_sort_by != 'training_name' or current_sort_order == 'desc' else 'desc') }}">
-          Training Name
+          ชื่อการฝึก
           {% if current_sort_by == 'training_name' %}
             {% if current_sort_order == 'asc' %}
               &#9650;
@@ -62,7 +62,7 @@
                              sensor_id=request.args.get('sensor_id', ''), 
                              sort_by='sensor_id', 
                              sort_order='asc' if current_sort_by != 'sensor_id' or current_sort_order == 'desc' else 'desc') }}">
-          Sensor ID
+          รหัสเซ็นเซอร์
           {% if current_sort_by == 'sensor_id' %}
             {% if current_sort_order == 'asc' %}
               &#9650;
@@ -78,7 +78,7 @@
                              sensor_id=request.args.get('sensor_id', ''), 
                              sort_by='start_time', 
                              sort_order='asc' if current_sort_by != 'start_time' or current_sort_order == 'desc' else 'desc') }}">
-          Start Time
+          เวลาเริ่มต้น
           {% if current_sort_by == 'start_time' %}
             {% if current_sort_order == 'asc' %}
               &#9650;
@@ -94,7 +94,7 @@
                              sensor_id=request.args.get('sensor_id', ''), 
                              sort_by='stop_time', 
                              sort_order='asc' if current_sort_by != 'stop_time' or current_sort_order == 'desc' else 'desc') }}">
-          Stop Time
+          เวลาเลิก
           {% if current_sort_by == 'stop_time' %}
             {% if current_sort_order == 'asc' %}
               &#9650;
@@ -104,7 +104,7 @@
           {% endif %}
         </a>
       </th>
-      <th>Actions</th>
+      <th>การดำเนินการ</th>
     </tr>
   </thead>
   <tbody>
@@ -116,7 +116,7 @@
         <td>{{ round.start_time }}</td>
         <td>{{ round.stop_time }}</td>
         <td>
-          <a href="{{ url_for('round_details', round_id=round.id) }}" class="btn btn-info btn-sm">Details</a>
+          <a href="{{ url_for('round_details', round_id=round.id) }}" class="btn btn-info btn-sm">รายละเอียด</a>
         </td>
       </tr>
     {% endfor %}

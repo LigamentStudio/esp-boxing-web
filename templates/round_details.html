@@ -1,29 +1,32 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Training Round Details</h2>
+<h2>รายละเอียดการฝึก</h2>
 <p>
-  <strong>Training Name:</strong> {{ round.training_name }}<br>
-  <strong>Sensor ID:</strong> {{ round.sensor_id }}<br>
-  <strong>Start Time:</strong> {{ round.start_time }}<br>
-  <strong>Stop Time:</strong> {{ round.stop_time }}
+  <strong>ชื่อผู้ฝึก:</strong> {{ round.training_name }}<br>
+  <strong>รหัสเซ็นเซอร์:</strong> {{ round.sensor_id }}<br>
+  <strong>เวลาเริ่มต้น:</strong> {{ round.start_time }}<br>
+  <strong>เวลาสิ้นสุด:</strong> {{ round.stop_time }}
 </p>
 
-<!-- Delete button -->
-<form method="POST" action="{{ url_for('delete_round', round_id=round.id) }}" onsubmit="return confirm('Are you sure you want to delete this training round?');">
-  <button type="submit" class="btn btn-danger">Delete Round</button>
+<!-- ปุ่มลบ -->
+<form method="POST" action="{{ url_for('delete_round', round_id=round.id) }}" 
+      onsubmit="return confirm('คุณแน่ใจหรือว่าต้องการลบรอบการฝึกนี้?');">
+  <button type="submit" class="btn btn-danger">ลบรอบ</button>
 </form>
 
-<h3>Sensor Events</h3>
+<h3>ข้อมูลการฝึก</h3>
 <table class="table table-striped">
   <thead>
     <tr>
-      <th>Timestamp</th>
-      <th>Reed Value</th>
-      <th>Force 1</th>
-      <th>Force 2</th>
-      <th>Force 3</th>
-      <th>Force 4</th>
+      <th>เวลา</th>
+      <th>ค่า Reed</th>
+      <th>จุดที่โดน</th>
+      <th>{{ config.get('sensor_label1', 'แรง 1') }}</th>
+      <th>{{ config.get('sensor_label2', 'แรง 2') }}</th>
+      <th>{{ config.get('sensor_label3', 'แรง 3') }}</th>
+      <th>{{ config.get('sensor_label4', 'แรง 4') }}</th>
+      <th>ค่าดิบ</th>
     </tr>
   </thead>
   <tbody>
@@ -31,18 +34,16 @@
       <tr>
         <td>{{ sensor_event.timestamp }}</td>
         <td>{{ sensor_event.reed_value }}</td>
-        {% for i in range(4) %}
-          <td>
-            {% if sensor_event.forces_list|length > i %}
-              {{ sensor_event.forces_list[i] }}
-            {% else %}
-              --
-            {% endif %}
-          </td>
-        {% endfor %}
+        <td>{{ sensor_event.event }}</td>
+        <td>{{ sensor_event.p1 if sensor_event.p1 is not none else '--' }}</td>
+        <td>{{ sensor_event.p2 if sensor_event.p2 is not none else '--' }}</td>
+        <td>{{ sensor_event.p3 if sensor_event.p3 is not none else '--' }}</td>
+        <td>{{ sensor_event.p4 if sensor_event.p4 is not none else '--' }}</td>
+        <td>{{ sensor_event.forces }}</td>
       </tr>
     {% endfor %}
   </tbody>
 </table>
-<a href="{{ url_for('history') }}" class="btn btn-secondary">Back to History</a>
+
+<a href="{{ url_for('history') }}" class="btn btn-secondary">กลับไปที่ประวัติ</a>
 {% endblock %}

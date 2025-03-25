@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Currently Online Sensors</h2>
+<h2>เซ็นเซอร์ออนไลน์ในขณะนี้</h2>
   {% if online_list %}
     <ul>
       {% for sensor in online_list %}
-        <li>Sensor ID: {{ sensor.sensor_id }} - Last Seen: {{ sensor.last_seen }}</li>
+        <li>รหัสเซ็นเซอร์: {{ sensor.sensor_id }} - เวลาที่พบล่าสุด: {{ sensor.last_seen }}</li>
       {% endfor %}
     </ul>
   {% else %}
-    <p>No sensors online in the last 60 seconds.</p>
+    <p>ไม่มีเซ็นเซอร์ออนไลน์ในช่วง 60 วินาทีที่ผ่านมา</p>
   {% endif %}
 {% endblock %}

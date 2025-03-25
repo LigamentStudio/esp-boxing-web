@@ -75,6 +75,10 @@ def insert_config(conn, key, value):
 ########################################
 def init_db():
     with get_db_connection() as conn:
+        # Drop old config table (if exists)
+        if (os.getenv("DROP_TABLES_ON_STARTUP") == "True" or os.getenv("DROP_TABLES_ON_STARTUP") == "true"):
+            conn.execute("DROP TABLE IF EXISTS training_round")
+        
         # Create config table
         conn.execute('''
             CREATE TABLE IF NOT EXISTS config (
@@ -83,11 +87,13 @@ def init_db():
             )
         ''')
         # Insert default config values
-        insert_config(conn, 'training_name', 'Training Name')
-        insert_config(conn, 'sensor_id', '')
         insert_config(conn, 'mqtt_broker', 'broker.mqtt.cool')
         insert_config(conn, 'mqtt_port', '1883')
-
+        insert_config(conn, 'sensor_label1', 'หัว')
+        insert_config(conn, 'sensor_label2', 'ลำตัว')
+        insert_config(conn, 'sensor_label3', 'ท้อง')
+        insert_config(conn, 'sensor_label4', 'ขา')
+        
         # Create training_round table (auto-increment syntax depends on DB)
         if USE_SQLITE:
             training_round_sql = '''
@@ -95,6 +101,7 @@ def init_db():
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     training_name TEXT,
                     sensor_id TEXT,
+                    map_force_position TEXT,
                     start_time TEXT,
                     stop_time TEXT
                 )
@@ -106,6 +113,10 @@ def init_db():
                     reed_value INTEGER,
                     event TEXT,
                     forces TEXT,
+                    p1 INTEGER,
+                    p2 INTEGER,
+                    p3 INTEGER,
+                    p4 INTEGER,
                     training_round_id INTEGER,
                     FOREIGN KEY(training_round_id) REFERENCES training_round(id)
                 )
@@ -116,6 +127,7 @@ def init_db():
                     id SERIAL PRIMARY KEY,
                     training_name TEXT,
                     sensor_id TEXT,
+                    map_force_position TEXT,
                     start_time TEXT,
                     stop_time TEXT
                 )
@@ -127,6 +139,10 @@ def init_db():
                     reed_value INTEGER,
                     event TEXT,
                     forces TEXT,
+                    p1 INTEGER,
+                    p2 INTEGER,
+                    p3 INTEGER,
+                    p4 INTEGER,
                     training_round_id INTEGER,
                     FOREIGN KEY(training_round_id) REFERENCES training_round(id)
                 )
@@ -163,17 +179,28 @@ def on_message(client, userdata, msg):
         
         # Get the configured sensor id from settings
         with get_db_connection() as conn:
-            cur = conn.execute("SELECT value FROM config WHERE key = 'sensor_id'")
+            cur = conn.execute("SELECT sensor_id, map_force_position FROM training_round WHERE id = (?)", (current_training_round_id,))
             row = cur.fetchone()
-            config_sensor_id = row['value'] if row else None
+            config_sensor_id = row['sensor_id'] if row else None
+            print(f"Current training round sensor id: {config_sensor_id}")
+            map_force_position = row['map_force_position'] if row else None
+            
+            # Map forces to positions
+            pos1, pos2, pos3, pos4 = None, None, None, None
+            if map_force_position:
+                try:
+                    pos1 = forces[map_force_position[0]]
+                    pos2 = forces[map_force_position[1]]
+                    pos3 = forces[map_force_position[2]]
+                    pos4 = forces[map_force_position[3]]
+                except:
+                    pass
 
         # Record sensor data only if sensor id matches and a round is active.
         if sensor_id_in_topic == config_sensor_id and current_training_round_id is not None:
             with get_db_connection() as conn:
-                conn.execute(
-                    "INSERT INTO sensor_history (timestamp, reed_value, event, forces, training_round_id) VALUES (?, ?, ?, ?, ?)",
-                    (timestamp, reed_value, event, forces_json, current_training_round_id)
-                )
+                conn.execute("INSERT INTO sensor_history (timestamp, reed_value, event, forces, p1, p2, p3, p4, training_round_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                             (timestamp, reed_value, event, forces_json, pos1, pos2, pos3, pos4, current_training_round_id))
                 conn.commit()
             print(f"Recorded sensor data: {timestamp} - Reed:{reed_value} - {event} - {forces_json}")
     except Exception as e:
@@ -216,23 +243,47 @@ def index():
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     if request.method == 'POST':
-        training_name = request.form.get('training_name', 'Training Name')
-        sensor_id = request.form.get('sensor_id', '')
         mqtt_broker = request.form.get('mqtt_broker', 'broker.mqtt.cool')
         mqtt_port = request.form.get('mqtt_port', '1883')
+        sensor_label1 = request.form.get('sensor_label1', 'หัว')
+        sensor_label2 = request.form.get('sensor_label2', 'ลำตัว')
+        sensor_label3 = request.form.get('sensor_label3', 'ท้อง')
+        sensor_label4 = request.form.get('sensor_label4', 'ขา')
+        default_position_sensor1 = request.form.get('default_position_sensor1', '1')
+        default_position_sensor2 = request.form.get('default_position_sensor2', '2')
+        default_position_sensor3 = request.form.get('default_position_sensor3', '3')
+        default_position_sensor4 = request.form.get('default_position_sensor4', '4')
         with get_db_connection() as conn:
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else 
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('training_name', training_name))
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else 
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('sensor_id', sensor_id))
             conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else 
                          "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
                          ('mqtt_broker', mqtt_broker))
             conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else 
                          "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
                          ('mqtt_port', mqtt_port))
+            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
+                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                         ('sensor_label1', sensor_label1))
+            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
+                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                         ('sensor_label2', sensor_label2))
+            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
+                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                         ('sensor_label3', sensor_label3))
+            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
+                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                         ('sensor_label4', sensor_label4))
+            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
+                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                         ('default_position_sensor1', default_position_sensor1))
+            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
+                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                         ('default_position_sensor2', default_position_sensor2))
+            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
+                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                         ('default_position_sensor3', default_position_sensor3))
+            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
+                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                         ('default_position_sensor4', default_position_sensor4))
             conn.commit()
         flash("MQTT configuration updated successfully!")
         return redirect(url_for('settings'))
@@ -246,65 +297,60 @@ def settings():
 @app.route('/record', methods=['GET', 'POST'])
 def record():
     global current_training_round_id, online_sensors
+
     if request.method == 'POST':
-        training_name = request.form.get('training_name', 'Training Name')
-        sensor_id = request.form.get('sensor_id', '')
-        with get_db_connection() as conn:
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else 
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('training_name', training_name))
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else 
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('sensor_id', sensor_id))
-            conn.commit()
-        flash("Settings updated successfully!")
-        return redirect(url_for('start'), code=307)
-    else:
-        with get_db_connection() as conn:
-            cur = conn.execute("SELECT key, value FROM config")
-            rows = cur.fetchall()
-            config = {row['key']: row['value'] for row in rows}
+        # Fetch training details
+        training_name = request.form.get('training_name', '').strip()
+        sensor_id = request.form.get('sensor_id', '').strip()
 
-        # Determine which sensors are online (active in the last 60 seconds).
-        threshold = time.time() - 60
-        online_list = []
-        for sensor_id, last_seen in online_sensors.items():
-            if last_seen > threshold:
-                online_list.append({
-                    'sensor_id': sensor_id,
-                    'last_seen': datetime.fromtimestamp(last_seen).strftime('%Y-%m-%d %H:%M:%S')
-                })
-        return render_template('record.html',
-                               training_active=(current_training_round_id is not None),
-                               config=config,
-                               online_sensors=online_list)
+        # Fetch user-defined labels and positions
+        sensor_label1 = request.form.get('sensor_label1', '')
+        sensor_label2 = request.form.get('sensor_label2', '')
+        sensor_label3 = request.form.get('sensor_label3', '')
+        sensor_label4 = request.form.get('sensor_label4', '')
 
-@app.route('/start', methods=['POST'])
-def start():
-    global current_training_round_id
-    if current_training_round_id is not None:
-        flash("A training round is already in progress!")
+        default_position_sensor1 = request.form.get('default_position_sensor1', '')
+        default_position_sensor2 = request.form.get('default_position_sensor2', '')
+        default_position_sensor3 = request.form.get('default_position_sensor3', '')
+        default_position_sensor4 = request.form.get('default_position_sensor4', '')
+
+        # Ensure all sensors and positions are selected
+        if "" in {sensor_label1, sensor_label2, sensor_label3, sensor_label4,
+                  default_position_sensor1, default_position_sensor2, default_position_sensor3, default_position_sensor4}:
+            flash("⚠ การตั้งค่าปัจจุบันเซ็นเซ็อร์ไม่ได้ตั้งค่าครบทุกตำแหน่งโปรดตรวจสอบ!", "warning")
+
+        # Ensure sensors are uniquely assigned
+        map_force_position = [sensor_label1, sensor_label2, sensor_label3, sensor_label4]
+        
+        # Start training session
+        if current_training_round_id is None:
+            start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            with get_db_connection() as conn:
+                cur = conn.execute(
+                    "INSERT INTO training_round (training_name, sensor_id, map_force_position, start_time) VALUES (?, ?, ?, ?)"
+                    if USE_SQLITE else
+                    "INSERT INTO training_round (training_name, sensor_id, map_force_position, start_time) VALUES (%s, %s, %s, %s) RETURNING id",
+                    (training_name, sensor_id, json.dumps(map_force_position), start_time)
+                )
+                conn.commit()
+                current_training_round_id = cur.lastrowid if USE_SQLITE else cur.fetchone()['id']
+
+            flash("🎯 เริ่มต้นการฝึกซ้อมแล้ว!", "success")
+
         return redirect(url_for('record'))
-    
+
+    # Load configuration and online sensors
     with get_db_connection() as conn:
-        cur = conn.execute("SELECT value FROM config WHERE key = 'training_name'")
-        row = cur.fetchone()
-        training_name = row['value'] if row else 'Default Training'
-        cur = conn.execute("SELECT value FROM config WHERE key = 'sensor_id'")
-        row = cur.fetchone()
-        sensor_id = row['value'] if row else 'XXXXXXXXXXXXXXXX'
-        start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        cur = conn.execute(
-            "INSERT INTO training_round (training_name, sensor_id, start_time) VALUES (?, ?, ?)",
-            (training_name, sensor_id, start_time)
-        ) if USE_SQLITE else conn.execute(
-            "INSERT INTO training_round (training_name, sensor_id, start_time) VALUES (%s, %s, %s) RETURNING id",
-            (training_name, sensor_id, start_time)
-        )
-        conn.commit()
-        current_training_round_id = cur.lastrowid  if USE_SQLITE else cur.fetchone()['id']
-    flash("Training round started!")
-    return redirect(url_for('record'))
+        cur = conn.execute("SELECT key, value FROM config")
+        config = {row['key']: row['value'] for row in cur.fetchall()}
+
+    threshold = time.time() - 60
+    online_list = [
+        {'sensor_id': sensor_id, 'last_seen': datetime.fromtimestamp(last_seen).strftime('%Y-%m-%d %H:%M:%S')}
+        for sensor_id, last_seen in online_sensors.items() if last_seen > threshold
+    ]
+
+    return render_template('record.html', config=config, online_sensors=online_list, training_active=(current_training_round_id is not None))
 
 @app.route('/stop', methods=['POST'])
 def stop():
@@ -317,7 +363,7 @@ def stop():
     with get_db_connection() as conn:
         conn.execute("UPDATE training_round SET stop_time = ? WHERE id = ?", (stop_time, current_training_round_id))
         conn.commit()
-    flash("Training round stopped and saved!")
+    flash("บันทึกการฝึกซ้อมเสร็จสิ้นแล้ว!")
     current_training_round_id = None
     return redirect(url_for('record'))
 
@@ -393,22 +439,28 @@ def history():
 @app.route('/history/<int:round_id>')
 def round_details(round_id):
     with get_db_connection() as conn:
+        # Load sensor labels from config
+        cur = conn.execute("SELECT * FROM config")
+        config = {row['key']: row['value'] for row in cur.fetchall()}
+
+        # Fetch round details
         cur = conn.execute("SELECT * FROM training_round WHERE id = ?", (round_id,))
         round_info = cur.fetchone()
+
+        # Fetch sensor event history
         cur = conn.execute("SELECT * FROM sensor_history WHERE training_round_id = ? ORDER BY timestamp ASC", (round_id,))
         sensor_events = cur.fetchall()
+
+    # Process sensor event data
     processed_events = []
     for row in sensor_events:
         d = dict(row)
-        if d.get("forces"):
-            try:
-                d["forces_list"] = json.loads(d["forces"])
-            except:
-                d["forces_list"] = []
-        else:
-            d["forces_list"] = []
+        # If 'forces' data exists, decode it into a list
+        d["forces_list"] = json.loads(d["forces"]) if d.get("forces") else []
         processed_events.append(d)
-    return render_template('round_details.html', round=round_info, sensor_events=processed_events)
+
+    # Pass round details as "round", sensor events, and config to the template.
+    return render_template("round_details.html", round=round_info, sensor_events=processed_events, config=config)
 
 @app.route('/delete/<int:round_id>', methods=['POST'])
 def delete_round(round_id):
@@ -435,4 +487,4 @@ def online():
 
 if __name__ == '__main__':
     init_db()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)
