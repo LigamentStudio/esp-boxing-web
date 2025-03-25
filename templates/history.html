@@ -46,7 +46,7 @@
                              sensor_id=request.args.get('sensor_id', ''), 
                              sort_by='training_name', 
                              sort_order='asc' if current_sort_by != 'training_name' or current_sort_order == 'desc' else 'desc') }}">
-          ชื่อการฝึก
+          ชื่อผู้ฝึก
           {% if current_sort_by == 'training_name' %}
             {% if current_sort_order == 'asc' %}
               &#9650;
@@ -78,7 +78,7 @@
                              sensor_id=request.args.get('sensor_id', ''), 
                              sort_by='start_time', 
                              sort_order='asc' if current_sort_by != 'start_time' or current_sort_order == 'desc' else 'desc') }}">
-          เวลาเริ่มต้น
+          เวลาเริ่ม
           {% if current_sort_by == 'start_time' %}
             {% if current_sort_order == 'asc' %}
               &#9650;
@@ -94,7 +94,7 @@
                              sensor_id=request.args.get('sensor_id', ''), 
                              sort_by='stop_time', 
                              sort_order='asc' if current_sort_by != 'stop_time' or current_sort_order == 'desc' else 'desc') }}">
-          เวลาเลิก
+          เวลาหยุด
           {% if current_sort_by == 'stop_time' %}
             {% if current_sort_order == 'asc' %}
               &#9650;

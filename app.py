@@ -163,7 +163,6 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(MQTT_TOPIC)
 
 def on_message(client, userdata, msg):
-    global current_training_round_id, online_sensors
     topic = msg.topic  # e.g., "espboxing/sensors/64E833ACC838652B"
     try:
         sensor_id_in_topic = topic.split('/')[-1]
@@ -172,27 +171,29 @@ def on_message(client, userdata, msg):
         payload = json.loads(msg.payload.decode())
         # Expected payload: {"reed": int, "critical": bool, "forces": [int, int, ...]}
         reed_value = payload.get("reed", None)
-        event = "Head" if payload.get("critical", False) else "Body"
-        forces = payload.get("forces", [])
-        forces_json = json.dumps(forces)
+        event = "Head" if payload.get("critical", True) else "Body"
+        forces_json = payload.get("forces", [])
+        forces_json_str = json.dumps(forces_json)
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"Received message: {topic} - {payload}")
         
         # Get the configured sensor id from settings
         with get_db_connection() as conn:
             cur = conn.execute("SELECT sensor_id, map_force_position FROM training_round WHERE id = (?)", (current_training_round_id,))
             row = cur.fetchone()
             config_sensor_id = row['sensor_id'] if row else None
-            print(f"Current training round sensor id: {config_sensor_id}")
             map_force_position = row['map_force_position'] if row else None
+            map_force_position_json = json.loads(map_force_position) if map_force_position else None
             
             # Map forces to positions
             pos1, pos2, pos3, pos4 = None, None, None, None
-            if map_force_position:
+            if map_force_position_json:
                 try:
-                    pos1 = forces[map_force_position[0]]
-                    pos2 = forces[map_force_position[1]]
-                    pos3 = forces[map_force_position[2]]
-                    pos4 = forces[map_force_position[3]]
+                    pos1 = forces_json[int(map_force_position_json[0]) - 1] if not reed_value else ''
+                    pos2 = forces_json[int(map_force_position_json[1]) - 1]
+                    pos3 = forces_json[int(map_force_position_json[2]) - 1]
+                    pos4 = forces_json[int(map_force_position_json[3]) - 1]
+                    
                 except:
                     pass
 
@@ -200,7 +201,7 @@ def on_message(client, userdata, msg):
         if sensor_id_in_topic == config_sensor_id and current_training_round_id is not None:
             with get_db_connection() as conn:
                 conn.execute("INSERT INTO sensor_history (timestamp, reed_value, event, forces, p1, p2, p3, p4, training_round_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                             (timestamp, reed_value, event, forces_json, pos1, pos2, pos3, pos4, current_training_round_id))
+                            (timestamp, reed_value, event, forces_json_str, pos1, pos2, pos3, pos4, current_training_round_id))
                 conn.commit()
             print(f"Recorded sensor data: {timestamp} - Reed:{reed_value} - {event} - {forces_json}")
     except Exception as e:
@@ -365,7 +366,7 @@ def stop():
         conn.commit()
     flash("บันทึกการฝึกซ้อมเสร็จสิ้นแล้ว!")
     current_training_round_id = None
-    return redirect(url_for('record'))
+    return redirect(url_for('history'))
 
 @app.route('/stream')
 def stream():

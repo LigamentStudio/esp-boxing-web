@@ -9,11 +9,7 @@
   <strong>เวลาสิ้นสุด:</strong> {{ round.stop_time }}
 </p>
 
-<!-- ปุ่มลบ -->
-<form method="POST" action="{{ url_for('delete_round', round_id=round.id) }}" 
-      onsubmit="return confirm('คุณแน่ใจหรือว่าต้องการลบรอบการฝึกนี้?');">
-  <button type="submit" class="btn btn-danger">ลบรอบ</button>
-</form>
+
 
 <h3>ข้อมูลการฝึก</h3>
 <table class="table table-striped">
@@ -26,24 +22,38 @@
       <th>{{ config.get('sensor_label2', 'แรง 2') }}</th>
       <th>{{ config.get('sensor_label3', 'แรง 3') }}</th>
       <th>{{ config.get('sensor_label4', 'แรง 4') }}</th>
-      <th>ค่าดิบ</th>
+      <!-- <th>ค่าดิบ</th> -->
     </tr>
   </thead>
   <tbody>
     {% for sensor_event in sensor_events %}
-      <tr>
-        <td>{{ sensor_event.timestamp }}</td>
-        <td>{{ sensor_event.reed_value }}</td>
-        <td>{{ sensor_event.event }}</td>
-        <td>{{ sensor_event.p1 if sensor_event.p1 is not none else '--' }}</td>
-        <td>{{ sensor_event.p2 if sensor_event.p2 is not none else '--' }}</td>
-        <td>{{ sensor_event.p3 if sensor_event.p3 is not none else '--' }}</td>
-        <td>{{ sensor_event.p4 if sensor_event.p4 is not none else '--' }}</td>
-        <td>{{ sensor_event.forces }}</td>
-      </tr>
+    <tr>
+      <td>{{ sensor_event.timestamp }}</td>
+      <td>{{ sensor_event.reed_value }}</td>
+      <td>{{ "ลำตัว" if sensor_event.reed_value else "หัว" }}</td>
+      <td>{{ sensor_event.p1 if sensor_event.p1 is not none else '--' }}</td>
+      <td>{{ sensor_event.p2 if sensor_event.p2 is not none else '--' }}</td>
+      <td>{{ sensor_event.p3 if sensor_event.p3 is not none else '--' }}</td>
+      <td>{{ sensor_event.p4 if sensor_event.p4 is not none else '--' }}</td>
+      <!-- <td>{{ sensor_event.forces }}</td> -->
+    </tr>
     {% endfor %}
   </tbody>
 </table>
 
-<a href="{{ url_for('history') }}" class="btn btn-secondary">กลับไปที่ประวัติ</a>
-{% endblock %}
+<div class="row">
+  <div class="col">
+    <!-- ปุ่มลบ -->
+    <form method="POST" action="{{ url_for('delete_round', round_id=round.id) }}"
+      onsubmit="return confirm('คุณแน่ใจหรือว่าต้องการลบรอบการฝึกนี้?');">
+      <button type="submit" class="btn btn-danger">ลบรอบ</button>
+    </form>
+  </div>
+  <div class="col text-right">
+    <!-- ปุ่มกลับ -->
+    <form method="GET" action="{{ url_for('history') }}">
+      <button type="submit" class="btn btn-secondary">กลับ</button>
+    </form>
+  </div>
+</div>
+  {% endblock %}
