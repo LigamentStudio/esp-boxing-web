@@ -2,7 +2,7 @@ import os
 import time
 import json
 import threading
-from datetime import datetime, timezone
+from datetime import datetime
 from flask import Flask, Response, render_template, request, redirect, url_for, flash
 import paho.mqtt.client as mqtt
 
@@ -67,7 +67,6 @@ def insert_config(conn, key, value):
     if USE_SQLITE:
         conn.execute("INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)", (key, value))
     else:
-        # PostgreSQL upsert syntax.
         conn.execute("INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING", (key, value))
 
 ########################################
@@ -75,8 +74,8 @@ def insert_config(conn, key, value):
 ########################################
 def init_db():
     with get_db_connection() as conn:
-        # Drop old config table (if exists)
-        if (os.getenv("DROP_TABLES_ON_STARTUP") == "True" or os.getenv("DROP_TABLES_ON_STARTUP") == "true"):
+        # Optionally drop old tables on startup
+        if os.getenv("DROP_TABLES_ON_STARTUP", "False").lower() == "true":
             conn.execute("DROP TABLE IF EXISTS training_round")
         
         # Create config table
@@ -93,8 +92,14 @@ def init_db():
         insert_config(conn, 'sensor_label2', 'ลำตัว')
         insert_config(conn, 'sensor_label3', 'ท้อง')
         insert_config(conn, 'sensor_label4', 'ขา')
+        insert_config(conn, 'default_position_sensor1', '1')
+        insert_config(conn, 'default_position_sensor2', '2')
+        insert_config(conn, 'default_position_sensor3', '3')
+        insert_config(conn, 'default_position_sensor4', '4')
+        # Default custom fields (empty array)
+        insert_config(conn, 'custom_fields', '[]')
         
-        # Create training_round table (auto-increment syntax depends on DB)
+        # Create training_round table with a custom_fields column.
         if USE_SQLITE:
             training_round_sql = '''
                 CREATE TABLE IF NOT EXISTS training_round (
@@ -102,6 +107,7 @@ def init_db():
                     training_name TEXT,
                     sensor_id TEXT,
                     map_force_position TEXT,
+                    custom_fields TEXT,
                     start_time TEXT,
                     stop_time TEXT
                 )
@@ -128,6 +134,7 @@ def init_db():
                     training_name TEXT,
                     sensor_id TEXT,
                     map_force_position TEXT,
+                    custom_fields TEXT,
                     start_time TEXT,
                     stop_time TEXT
                 )
@@ -194,8 +201,8 @@ def on_message(client, userdata, msg):
                     pos3 = forces_json[int(map_force_position_json[2]) - 1]
                     pos4 = forces_json[int(map_force_position_json[3]) - 1]
                     
-                except:
-                    pass
+                except Exception as e:
+                    print("Mapping error:", e)
 
         # Record sensor data only if sensor id matches and a round is active.
         if sensor_id_in_topic == config_sensor_id and current_training_round_id is not None:
@@ -254,46 +261,44 @@ def settings():
         default_position_sensor2 = request.form.get('default_position_sensor2', '2')
         default_position_sensor3 = request.form.get('default_position_sensor3', '3')
         default_position_sensor4 = request.form.get('default_position_sensor4', '4')
+        
+        # Process custom field definitions
+        field_names = request.form.getlist('field_name[]')
+        field_labels = request.form.getlist('field_label[]')
+        field_defaults = request.form.getlist('field_default[]')
+        custom_fields = []
+        for name, label, default in zip(field_names, field_labels, field_defaults):
+            custom_fields.append({
+                "name": name,
+                "label": label,
+                "default": default
+            })
+        custom_fields_json = json.dumps(custom_fields)
+        
         with get_db_connection() as conn:
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else 
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('mqtt_broker', mqtt_broker))
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else 
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('mqtt_port', mqtt_port))
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('sensor_label1', sensor_label1))
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('sensor_label2', sensor_label2))
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('sensor_label3', sensor_label3))
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('sensor_label4', sensor_label4))
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('default_position_sensor1', default_position_sensor1))
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('default_position_sensor2', default_position_sensor2))
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('default_position_sensor3', default_position_sensor3))
-            conn.execute("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
-                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                         ('default_position_sensor4', default_position_sensor4))
+            query_sql = ("REPLACE INTO config (key, value) VALUES (?, ?)" if USE_SQLITE else
+                         "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value")
+            conn.execute(query_sql, ('mqtt_broker', mqtt_broker))
+            conn.execute(query_sql, ('mqtt_port', mqtt_port))
+            conn.execute(query_sql, ('sensor_label1', sensor_label1))
+            conn.execute(query_sql, ('sensor_label2', sensor_label2))
+            conn.execute(query_sql, ('sensor_label3', sensor_label3))
+            conn.execute(query_sql, ('sensor_label4', sensor_label4))
+            conn.execute(query_sql, ('default_position_sensor1', default_position_sensor1))
+            conn.execute(query_sql, ('default_position_sensor2', default_position_sensor2))
+            conn.execute(query_sql, ('default_position_sensor3', default_position_sensor3))
+            conn.execute(query_sql, ('default_position_sensor4', default_position_sensor4))
+            conn.execute(query_sql, ('custom_fields', custom_fields_json))
             conn.commit()
-        flash("MQTT configuration updated successfully!")
+        flash("MQTT configuration and custom fields updated successfully!")
         return redirect(url_for('settings'))
     else:
         with get_db_connection() as conn:
             cur = conn.execute("SELECT key, value FROM config")
             rows = cur.fetchall()
             config = {row['key']: row['value'] for row in rows}
-        return render_template('settings.html', config=config)
+            custom_fields = json.loads(config.get('custom_fields', '[]'))
+        return render_template('settings.html', config=config, custom_fields=custom_fields)
 
 @app.route('/record', methods=['GET', 'POST'])
 def record():
@@ -304,7 +309,7 @@ def record():
         training_name = request.form.get('training_name', '').strip()
         sensor_id = request.form.get('sensor_id', '').strip()
 
-        # Fetch user-defined labels and positions
+        # Fetch sensor positions
         sensor_label1 = request.form.get('sensor_label1', '')
         sensor_label2 = request.form.get('sensor_label2', '')
         sensor_label3 = request.form.get('sensor_label3', '')
@@ -316,34 +321,44 @@ def record():
         default_position_sensor4 = request.form.get('default_position_sensor4', '')
 
         # Ensure all sensors and positions are selected
-        if "" in {sensor_label1, sensor_label2, sensor_label3, sensor_label4,
-                  default_position_sensor1, default_position_sensor2, default_position_sensor3, default_position_sensor4}:
-            flash("⚠ การตั้งค่าปัจจุบันเซ็นเซ็อร์ไม่ได้ตั้งค่าครบทุกตำแหน่งโปรดตรวจสอบ!", "warning")
+        if "" in {sensor_label1, sensor_label2, sensor_label3, sensor_label4}:
+            flash("⚠ การตั้งค่าปัจจุบันเซ็นเซอร์ไม่ได้ตั้งค่าครบทุกตำแหน่งโปรดตรวจสอบ!", "warning")
 
-        # Ensure sensors are uniquely assigned
+        # Map forces positions
         map_force_position = [sensor_label1, sensor_label2, sensor_label3, sensor_label4]
+        
+        # Process custom field values.
+        with get_db_connection() as conn:
+            cur = conn.execute("SELECT key, value FROM config")
+            rows = cur.fetchall()
+            config = {row['key']: row['value'] for row in rows}
+        custom_fields_def = json.loads(config.get('custom_fields', '[]'))
+        custom_values = {}
+        for field in custom_fields_def:
+            custom_values[field["name"]] = request.form.get(field["name"], field.get("default", ""))
+        custom_values_json = json.dumps(custom_values)
         
         # Start training session
         if current_training_round_id is None:
             start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             with get_db_connection() as conn:
-                cur = conn.execute(
-                    "INSERT INTO training_round (training_name, sensor_id, map_force_position, start_time) VALUES (?, ?, ?, ?)"
+                query = (
+                    "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time) VALUES (?, ?, ?, ?, ?)"
                     if USE_SQLITE else
-                    "INSERT INTO training_round (training_name, sensor_id, map_force_position, start_time) VALUES (%s, %s, %s, %s) RETURNING id",
-                    (training_name, sensor_id, json.dumps(map_force_position), start_time)
+                    "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time) VALUES (%s, %s, %s, %s, %s) RETURNING id"
                 )
+                params = (training_name, sensor_id, json.dumps(map_force_position), custom_values_json, start_time)
+                cur = conn.execute(query, params)
                 conn.commit()
                 current_training_round_id = cur.lastrowid if USE_SQLITE else cur.fetchone()['id']
-
             flash("🎯 เริ่มต้นการฝึกซ้อมแล้ว!", "success")
-
         return redirect(url_for('record'))
 
     # Load configuration and online sensors
     with get_db_connection() as conn:
         cur = conn.execute("SELECT key, value FROM config")
         config = {row['key']: row['value'] for row in cur.fetchall()}
+        custom_fields = json.loads(config.get('custom_fields', '[]'))
 
     threshold = time.time() - 60
     online_list = [
@@ -351,7 +366,7 @@ def record():
         for sensor_id, last_seen in online_sensors.items() if last_seen > threshold
     ]
 
-    return render_template('record.html', config=config, online_sensors=online_list, training_active=(current_training_round_id is not None))
+    return render_template('record.html', config=config, custom_fields=custom_fields, online_sensors=online_list, training_active=(current_training_round_id is not None))
 
 @app.route('/stop', methods=['POST'])
 def stop():
@@ -407,7 +422,6 @@ def history():
     sort_by = request.args.get('sort_by', 'start_time')
     sort_order = request.args.get('sort_order', 'desc').lower()
 
-    # Only allow sorting by these columns
     allowed_columns = ['id', 'training_name', 'sensor_id', 'start_time', 'stop_time']
     if sort_by not in allowed_columns:
         sort_by = 'start_time'
@@ -440,35 +454,35 @@ def history():
 @app.route('/history/<int:round_id>')
 def round_details(round_id):
     with get_db_connection() as conn:
-        # Load sensor labels from config
         cur = conn.execute("SELECT * FROM config")
         config = {row['key']: row['value'] for row in cur.fetchall()}
 
-        # Fetch round details
         cur = conn.execute("SELECT * FROM training_round WHERE id = ?", (round_id,))
         round_info = cur.fetchone()
 
-        # Fetch sensor event history
         cur = conn.execute("SELECT * FROM sensor_history WHERE training_round_id = ? ORDER BY timestamp ASC", (round_id,))
         sensor_events = cur.fetchall()
 
-    # Process sensor event data
     processed_events = []
     for row in sensor_events:
         d = dict(row)
-        # If 'forces' data exists, decode it into a list
         d["forces_list"] = json.loads(d["forces"]) if d.get("forces") else []
         processed_events.append(d)
+    
+    custom_fields_data = []
+    if round_info and round_info["custom_fields"]:
+        try:
+            custom_fields_data = json.loads(round_info["custom_fields"])
+        except Exception as e:
+            print("Error parsing custom_fields:", e)
 
-    # Pass round details as "round", sensor events, and config to the template.
-    return render_template("round_details.html", round=round_info, sensor_events=processed_events, config=config)
+    return render_template("round_details.html", round=round_info, sensor_events=processed_events, config=config, custom_fields_data=custom_fields_data)
+
 
 @app.route('/delete/<int:round_id>', methods=['POST'])
 def delete_round(round_id):
     with get_db_connection() as conn:
-        # Optionally, delete sensor_history records linked to the round
         conn.execute("DELETE FROM sensor_history WHERE training_round_id = ?", (round_id,))
-        # Delete the training round
         conn.execute("DELETE FROM training_round WHERE id = ?", (round_id,))
         conn.commit()
     flash("Training round and associated sensor events deleted successfully!")
@@ -476,7 +490,7 @@ def delete_round(round_id):
 
 @app.route('/online')
 def online():
-    threshold = time.time() - 60  # sensors active in the last 60 seconds
+    threshold = time.time() - 60
     online_list = []
     for sensor_id, last_seen in online_sensors.items():
         if last_seen > threshold:

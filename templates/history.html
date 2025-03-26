@@ -44,10 +44,10 @@
         <a href="{{ url_for('history', 
                              training_name=request.args.get('training_name', ''), 
                              sensor_id=request.args.get('sensor_id', ''), 
-                             sort_by='training_name', 
-                             sort_order='asc' if current_sort_by != 'training_name' or current_sort_order == 'desc' else 'desc') }}">
-          ชื่อผู้ฝึก
-          {% if current_sort_by == 'training_name' %}
+                             sort_by='sensor_id', 
+                             sort_order='asc' if current_sort_by != 'sensor_id' or current_sort_order == 'desc' else 'desc') }}">
+          รหัสเซ็นเซอร์
+          {% if current_sort_by == 'sensor_id' %}
             {% if current_sort_order == 'asc' %}
               &#9650;
             {% else %}
@@ -60,10 +60,10 @@
         <a href="{{ url_for('history', 
                              training_name=request.args.get('training_name', ''), 
                              sensor_id=request.args.get('sensor_id', ''), 
-                             sort_by='sensor_id', 
-                             sort_order='asc' if current_sort_by != 'sensor_id' or current_sort_order == 'desc' else 'desc') }}">
-          รหัสเซ็นเซอร์
-          {% if current_sort_by == 'sensor_id' %}
+                             sort_by='training_name', 
+                             sort_order='asc' if current_sort_by != 'training_name' or current_sort_order == 'desc' else 'desc') }}">
+          ชื่อผู้ฝึก
+          {% if current_sort_by == 'training_name' %}
             {% if current_sort_order == 'asc' %}
               &#9650;
             {% else %}

@@ -12,10 +12,6 @@
 {% else %}
   <form method="POST" onsubmit="return validateForm()">
     <div class="form-group">
-      <label for="training_name">ชื่อผู้ฝึก</label>
-      <input type="text" class="form-control" id="training_name" name="training_name" value="{{ config.training_name }}">
-    </div>
-    <div class="form-group">
       <label for="sensor_id">รหัสโมดูล</label>
       <input type="text" class="form-control" id="sensor_id" name="sensor_id" value="{{ config.sensor_id }}" list="onlineSensors">
       <datalist id="onlineSensors">
@@ -23,6 +19,26 @@
           <option value="{{ sensor.sensor_id }}">{{ sensor.sensor_id }} (พบล่าสุด: {{ sensor.last_seen }})</option>
         {% endfor %}
       </datalist>
+    </div>
+    <div class="form-group">
+      <label for="training_name">ชื่อผู้ฝึก</label>
+      <input type="text" class="form-control" id="training_name" name="training_name" value="{{ config.training_name }}">
+    </div>
+    <div class="form-group">
+      <label for="branch">สาขา</label>
+      <input type="text" class="form-control" id="branch" name="branch" value="{{ config.branch }}">
+    </div>
+
+    {% for field in custom_fields %}
+    <div class="form-group">
+      <label for="{{ field.name }}">{{ field.label }}</label>
+      <input type="text" class="form-control" id="{{ field.name }}" name="{{ field.name }}" value="{{ field.default }}">
+    </div>
+    {% endfor %}
+
+    <div class="form-group">
+      <label for="recorder_name">ชื่อผู้บันทึก</label>
+      <input type="text" class="form-control" id="recorder_name" name="recorder_name" value="{{ config.recorder_name }}">
     </div>
 
     <h4>ตั้งค่าตำแหน่งเซ็นเซอร์</h4>
@@ -87,14 +103,6 @@
       }
       selections.add(value);
     });
-
-    // if (!isValid || selections.has("")) {
-    //   document.getElementById("warningMessage").style.display = "block";
-    //   return false;
-    // } else {
-    //   document.getElementById("warningMessage").style.display = "none";
-    //   return true;
-    // }
   }
 
   function updateSensorOptions() {
