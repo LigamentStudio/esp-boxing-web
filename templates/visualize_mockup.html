@@ -24,7 +24,9 @@
 {% else %}
   <p>ไม่มีการฝึกรอบที่กำลังดำเนินการ</p>
 {% endif %}
+{% endblock %}
 
+{% block scripts %}
 <script>
   // เปิดการเชื่อมต่อ SSE เพื่อรับการอัปเดตเซ็นเซอร์แบบเรียลไทม์
   const eventSource = new EventSource("/stream");
