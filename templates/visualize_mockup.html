@@ -5,7 +5,7 @@
 
 <div style="position: relative; display: inline-block;">
   <!-- รูปเงามวย (PNG หรือ SVG) -->
-  <img src="{{ url_for('static', filename='images/boxing-3632074_1920.png') }}" alt="Boxing Silhouette" style="width: 300px;">
+  <img src="{{ url_for('static', filename='images/gai.jpg') }}" alt="Boxing Silhouette" style="width: 300px;">
   
   <!-- ตัวระบุ: ตำแหน่งของมันจะเปลี่ยนแปลงตามเหตุการณ์ -->
   <div id="marker" style="position: absolute; width: 20px; height: 20px; background: red; border-radius: 50%; display: none;"></div>
@@ -36,8 +36,8 @@
     // ถ้าเป็น heartbeat ให้ข้ามไป
     if (data.heartbeat) return;
     
-    let sensorEvent = data.event;      // "Head" หรือ "Body"
-    let forceValues = data.forces;       // อาร์เรย์ของค่าจากเซ็นเซอร์แรง
+    let sensorEvent = data.event;
+    let forceValues = data.max_force;
     let marker = document.getElementById("marker");
     let forceLabel = document.getElementById("forceLabel");
     let latestEventSpan = document.getElementById("latestEvent");
@@ -71,8 +71,8 @@
       forceLabel.style.left = "55%";
     }
     
-    // แสดงค่าจากเซ็นเซอร์แรง (รวมอาร์เรย์เป็นสตริง)
-    forceLabel.textContent = "Force: " + (forceValues ? forceValues.join(", ") : "");
+    // แสดงค่าจากเซ็นเซอร์แรง
+    forceLabel.textContent = forceValues
   };
 
   eventSource.onerror = function(err) {

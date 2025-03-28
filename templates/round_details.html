@@ -21,25 +21,19 @@
   <table class="table table-striped" id="sensor-data-table">
     <thead>
       <tr>
+        <th>ลำดับ</th>
         <th>เวลา</th>
-        <th>ค่า Reed</th>
-        <th>จุดที่โดน</th>
-        <th>{{ config.get('sensor_label1', 'แรง 1') }}</th>
-        <th>{{ config.get('sensor_label2', 'แรง 2') }}</th>
-        <th>{{ config.get('sensor_label3', 'แรง 3') }}</th>
-        <th>{{ config.get('sensor_label4', 'แรง 4') }}</th>
+        <th>ตำแหน่ง</th>
+        <th>ความแรง</th>
       </tr>
     </thead>
     <tbody>
       {% for sensor_event in sensor_events %}
       <tr>
+        <td>{{ sensor_event.id }}</td>
         <td>{{ sensor_event.timestamp }}</td>
-        <td>{{ sensor_event.reed_value }}</td>
-        <td>{{ "ลำตัว" if sensor_event.reed_value else "หัว" }}</td>
-        <td>{{ sensor_event.p1 if sensor_event.p1 is not none else '--' }}</td>
-        <td>{{ sensor_event.p2 if sensor_event.p2 is not none else '--' }}</td>
-        <td>{{ sensor_event.p3 if sensor_event.p3 is not none else '--' }}</td>
-        <td>{{ sensor_event.p4 if sensor_event.p4 is not none else '--' }}</td>
+        <td>{{ sensor_event.event }}</td>
+        <td>{{ sensor_event.max_force }}</td>
       </tr>
       {% endfor %}
     </tbody>

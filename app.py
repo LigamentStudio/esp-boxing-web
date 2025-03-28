@@ -92,10 +92,16 @@ def init_db():
         insert_config(conn, 'sensor_label2', 'ลำตัว')
         insert_config(conn, 'sensor_label3', 'ท้อง')
         insert_config(conn, 'sensor_label4', 'ขา')
-        insert_config(conn, 'default_position_sensor1', '1')
-        insert_config(conn, 'default_position_sensor2', '2')
+        insert_config(conn, 'default_position_sensor1', '0')
+        insert_config(conn, 'default_position_sensor2', '1')
         insert_config(conn, 'default_position_sensor3', '3')
         insert_config(conn, 'default_position_sensor4', '4')
+        insert_config(conn, 'sensor_value_range_min1', 100)
+        insert_config(conn, 'sensor_value_range_min2', 200)
+        insert_config(conn, 'sensor_value_range_min3', 300)
+        insert_config(conn, 'sensor_value_range_max1', 199)
+        insert_config(conn, 'sensor_value_range_max2', 299)
+        insert_config(conn, 'sensor_value_range_max3', 399)
         # Default custom fields (empty array)
         insert_config(conn, 'custom_fields', '[]')
         
@@ -119,10 +125,7 @@ def init_db():
                     reed_value INTEGER,
                     event TEXT,
                     forces TEXT,
-                    p1 INTEGER,
-                    p2 INTEGER,
-                    p3 INTEGER,
-                    p4 INTEGER,
+                    max_force TEXT,
                     training_round_id INTEGER,
                     FOREIGN KEY(training_round_id) REFERENCES training_round(id)
                 )
@@ -146,10 +149,7 @@ def init_db():
                     reed_value INTEGER,
                     event TEXT,
                     forces TEXT,
-                    p1 INTEGER,
-                    p2 INTEGER,
-                    p3 INTEGER,
-                    p4 INTEGER,
+                    max_force TEXT,
                     training_round_id INTEGER,
                     FOREIGN KEY(training_round_id) REFERENCES training_round(id)
                 )
@@ -178,7 +178,6 @@ def on_message(client, userdata, msg):
         payload = json.loads(msg.payload.decode())
         # Expected payload: {"reed": int, "critical": bool, "forces": [int, int, ...]}
         reed_value = payload.get("reed", None)
-        event = "Head" if payload.get("critical", True) else "Body"
         forces_json = payload.get("forces", [])
         forces_json_str = json.dumps(forces_json)
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -189,17 +188,58 @@ def on_message(client, userdata, msg):
             cur = conn.execute("SELECT sensor_id, map_force_position FROM training_round WHERE id = (?)", (current_training_round_id,))
             row = cur.fetchone()
             config_sensor_id = row['sensor_id'] if row else None
+            event = "Head" if payload.get("critical", True) else "Body"
             map_force_position = row['map_force_position'] if row else None
             map_force_position_json = json.loads(map_force_position) if map_force_position else None
-            
+            sensor_value_range_min1 = int(conn.execute("SELECT value FROM config WHERE key = 'sensor_value_range_min1'").fetchone()[0])
+            sensor_value_range_min2 = int(conn.execute("SELECT value FROM config WHERE key = 'sensor_value_range_min2'").fetchone()[0])
+            sensor_value_range_min3 = int(conn.execute("SELECT value FROM config WHERE key = 'sensor_value_range_min3'").fetchone()[0])
+            sensor_value_range_max1 = int(conn.execute("SELECT value FROM config WHERE key = 'sensor_value_range_max1'").fetchone()[0])
+            sensor_value_range_max2 = int(conn.execute("SELECT value FROM config WHERE key = 'sensor_value_range_max2'").fetchone()[0])
+            sensor_value_range_max3 = int(conn.execute("SELECT value FROM config WHERE key = 'sensor_value_range_max3'").fetchone()[0])
+
             # Map forces to positions
             pos1, pos2, pos3, pos4 = None, None, None, None
             if map_force_position_json:
+                # Remap and convert forces to integers 0,1,3,4 -> 0,1,2,3
+                map_force_position_json = [int(x) for x in map_force_position_json]
+                map_force_position_json = [x if x < 2 else x - 1 for x in map_force_position_json]
+                # Map forces to positions
                 try:
-                    pos1 = forces_json[int(map_force_position_json[0]) - 1] if not reed_value else ''
-                    pos2 = forces_json[int(map_force_position_json[1]) - 1]
-                    pos3 = forces_json[int(map_force_position_json[2]) - 1]
-                    pos4 = forces_json[int(map_force_position_json[3]) - 1]
+                    pos1 = forces_json[map_force_position_json[0]] if not reed_value else ''
+                    pos2 = forces_json[map_force_position_json[1]]
+                    pos3 = forces_json[map_force_position_json[2]]
+                    pos4 = forces_json[map_force_position_json[3]]
+                    # Convert forces to integers
+                    pos1 = int(pos1) if pos1 is not None else None
+                    pos2 = int(pos2) if pos2 is not None else None
+                    pos3 = int(pos3) if pos3 is not None else None
+                    pos4 = int(pos4) if pos4 is not None else None
+
+                    # find the maximum force
+                    max_force = max(pos1, pos2, pos3, pos4) if all(x is not None for x in [pos1, pos2, pos3, pos4]) else 0
+                    max_force_str = str(max_force)
+                    # check maximum force in the range
+                    if sensor_value_range_min1 <= max_force <= sensor_value_range_max1:
+                        max_force_str += " [ ระดับ 1 ]"
+                    elif sensor_value_range_min2 <= max_force <= sensor_value_range_max2:
+                        max_force_str += " [ ระดับ 2 ]"
+                    elif sensor_value_range_min3 <= max_force <= sensor_value_range_max3:
+                        max_force_str += " [ ระดับ 3 ]"
+                    else:
+                        max_force_str = "ไม่อยู่ในช่วงที่กำหนด"
+                    
+                    # Map max force to the corresponding position
+                    if max_force == pos1:
+                        event = conn.execute("SELECT value FROM config WHERE key = 'sensor_label1'").fetchone()[0]
+                    elif max_force == pos2:
+                        event = conn.execute("SELECT value FROM config WHERE key = 'sensor_label2'").fetchone()[0]
+                    elif max_force == pos3:
+                        event = conn.execute("SELECT value FROM config WHERE key = 'sensor_label3'").fetchone()[0]
+                    elif max_force == pos4:
+                        event = conn.execute("SELECT value FROM config WHERE key = 'sensor_label4'").fetchone()[0]
+                    else:
+                        event = "ไม่พบตำแหน่ง"
                     
                 except Exception as e:
                     print("Mapping error:", e)
@@ -207,8 +247,8 @@ def on_message(client, userdata, msg):
         # Record sensor data only if sensor id matches and a round is active.
         if sensor_id_in_topic == config_sensor_id and current_training_round_id is not None:
             with get_db_connection() as conn:
-                conn.execute("INSERT INTO sensor_history (timestamp, reed_value, event, forces, p1, p2, p3, p4, training_round_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                            (timestamp, reed_value, event, forces_json_str, pos1, pos2, pos3, pos4, current_training_round_id))
+                conn.execute("INSERT INTO sensor_history (timestamp, reed_value, event, forces, max_force, training_round_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            (timestamp, reed_value, event, forces_json_str, max_force_str, current_training_round_id))
                 conn.commit()
             print(f"Recorded sensor data: {timestamp} - Reed:{reed_value} - {event} - {forces_json}")
     except Exception as e:
@@ -261,7 +301,13 @@ def settings():
         default_position_sensor2 = request.form.get('default_position_sensor2', '2')
         default_position_sensor3 = request.form.get('default_position_sensor3', '3')
         default_position_sensor4 = request.form.get('default_position_sensor4', '4')
-        
+        sensor_value_range_min1 = request.form.get('sensor_value_range_min1', 100)
+        sensor_value_range_min2 = request.form.get('sensor_value_range_min2', 200)
+        sensor_value_range_min3 = request.form.get('sensor_value_range_min3', 300)
+        sensor_value_range_min1 = request.form.get('sensor_value_range_max1', 199)
+        sensor_value_range_min2 = request.form.get('sensor_value_range_max2', 299)
+        sensor_value_range_min3 = request.form.get('sensor_value_range_max3', 399)
+
         # Process custom field definitions
         field_names = request.form.getlist('field_name[]')
         field_labels = request.form.getlist('field_label[]')
@@ -288,6 +334,12 @@ def settings():
             conn.execute(query_sql, ('default_position_sensor2', default_position_sensor2))
             conn.execute(query_sql, ('default_position_sensor3', default_position_sensor3))
             conn.execute(query_sql, ('default_position_sensor4', default_position_sensor4))
+            conn.execute(query_sql, ('sensor_value_range_min1', sensor_value_range_min1))
+            conn.execute(query_sql, ('sensor_value_range_min2', sensor_value_range_min2))
+            conn.execute(query_sql, ('sensor_value_range_min3', sensor_value_range_min3))
+            conn.execute(query_sql, ('sensor_value_range_max1', sensor_value_range_max1))
+            conn.execute(query_sql, ('sensor_value_range_max2', sensor_value_range_max2))
+            conn.execute(query_sql, ('sensor_value_range_max3', sensor_value_range_max3))
             conn.execute(query_sql, ('custom_fields', custom_fields_json))
             conn.commit()
         flash("MQTT configuration and custom fields updated successfully!")
@@ -391,7 +443,7 @@ def stream():
             if current_training_round_id is not None:
                 with get_db_connection() as conn:
                     cur = conn.execute("""
-                        SELECT id, timestamp, reed_value, event, forces 
+                        SELECT id, timestamp, reed_value, event, forces, max_force
                         FROM sensor_history 
                         WHERE training_round_id = ? AND id > ?
                         ORDER BY id ASC
@@ -403,7 +455,8 @@ def stream():
                         "timestamp": row["timestamp"],
                         "reed_value": row["reed_value"],
                         "event": row["event"],
-                        "forces": json.loads(row["forces"]) if row["forces"] else []
+                        "forces": json.loads(row["forces"]) if row["forces"] else [],
+                        "max_force": row["max_force"]
                     }
                     yield f"data: {json.dumps(data)}\n\n"
             else:
@@ -502,4 +555,4 @@ def online():
 
 if __name__ == '__main__':
     init_db()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=3001, debug=True)
