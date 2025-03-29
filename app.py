@@ -197,15 +197,15 @@ def on_message(client, userdata, msg):
             sensor_value_range_max1 = int(conn.execute("SELECT value FROM config WHERE key = 'sensor_value_range_max1'").fetchone()[0])
             sensor_value_range_max2 = int(conn.execute("SELECT value FROM config WHERE key = 'sensor_value_range_max2'").fetchone()[0])
             sensor_value_range_max3 = int(conn.execute("SELECT value FROM config WHERE key = 'sensor_value_range_max3'").fetchone()[0])
-
+            print(f"Sensor ID: {config_sensor_id}, Map Force Position: {map_force_position_json}")
             # Map forces to positions
             pos1, pos2, pos3, pos4 = None, None, None, None
             if map_force_position_json:
                 try:
-                    pos1 = forces_json["A" + str(map_force_position_json[0])] if not reed_value else 0
-                    pos2 = forces_json["A" + str(map_force_position_json[1])]
-                    pos3 = forces_json["A" + str(map_force_position_json[2])]
-                    pos4 = forces_json["A" + str(map_force_position_json[3])]
+                    pos1 = forces_json["A" + map_force_position_json[0]] if not reed_value else 0
+                    pos2 = forces_json["A" + map_force_position_json[1]] if map_force_position_json[1] != '' else 0
+                    pos3 = forces_json["A" + map_force_position_json[2]] if map_force_position_json[2] != '' else 0
+                    pos4 = forces_json["A" + map_force_position_json[3]] if map_force_position_json[3] != '' else 0
 
                     print(f"Sensor positions: {pos1}, {pos2}, {pos3}, {pos4}")
 
@@ -560,4 +560,4 @@ def online():
 
 if __name__ == '__main__':
     init_db()
-    app.run(host="0.0.0.0", port=5005, debug=True)
+    app.run(host="0.0.0.0", port=5005)
