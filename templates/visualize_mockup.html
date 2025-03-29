@@ -78,25 +78,31 @@
     forceLabel.style.display = "block";
     
     // จัดตำแหน่งตัวระบุและป้ายตามประเภทของเหตุการณ์
-    if (sensorEvent === "หัว") {
+    if (sensorEvent === data.sensor_label[0]) {
       // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งลำตัวในรูปของคุณ
       marker.style.top = "18%";
       marker.style.left = "66%";
       forceLabel.style.top = "19%";
       forceLabel.style.left = "53%";
-    } else if (sensorEvent === "ท้อง") {  // "Abdomen"
-      // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งหัวในรูปของคุณ
-      marker.style.top = "45%";
-      marker.style.left = "62%";
-      forceLabel.style.top = "46%";
-      forceLabel.style.left = "67%";
-    } else if (sensorEvent === "ลำตัว") {  // "Body"
+    } else if (sensorEvent === data.sensor_label[1]) {  // "Body"
       // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งลำตัวในรูปของคุณ
       marker.style.top = "34%";
       marker.style.left = "48%";
       forceLabel.style.top = "41%";
       forceLabel.style.left = "45%";
-    } 
+    } else if (sensorEvent === data.sensor_label[2]) {  // "Abdomen"
+      // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งหัวในรูปของคุณ
+      marker.style.top = "45%";
+      marker.style.left = "62%";
+      forceLabel.style.top = "46%";
+      forceLabel.style.left = "67%";
+    } else if (sensorEvent === data.sensor_label[3]) {  // leg
+      // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งขาในรูปของคุณ
+      marker.style.top = "60%";
+      marker.style.left = "48%";
+      forceLabel.style.top = "61%";
+      forceLabel.style.left = "53%";
+    }
     
     // แสดงค่าจากเซ็นเซอร์แรง
     forceLabel.textContent = forceValues

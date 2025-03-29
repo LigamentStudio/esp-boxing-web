@@ -30,7 +30,7 @@
     <tbody>
       {% for sensor_event in sensor_events %}
       <tr>
-        <td>{{ sensor_event.id }}</td>
+        <td>{{ loop.length - loop.index + 1 }}</td>
         <td>{{ sensor_event.timestamp }}</td>
         <td>{{ sensor_event.event }}</td>
         <td>{{ sensor_event.max_force }}</td>

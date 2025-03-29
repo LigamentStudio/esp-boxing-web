@@ -430,6 +430,17 @@ def stop():
 
 @app.route('/stream')
 def stream():
+    config = {}
+    with get_db_connection() as conn:
+        cur = conn.execute("SELECT key, value FROM config")
+        rows = cur.fetchall()
+        config = {row['key']: row['value'] for row in rows}
+    sensor_label = [
+        config.get('sensor_label1', 'หัว'),
+        config.get('sensor_label2', 'ลำตัว'),
+        config.get('sensor_label3', 'ท้อง'),
+        config.get('sensor_label4', 'ขา')
+    ]
     def event_stream():
         last_sent_id = 0
         while True:
@@ -449,7 +460,8 @@ def stream():
                         "reed_value": row["reed_value"],
                         "event": row["event"],
                         "forces": json.loads(row["forces"]) if row["forces"] else [],
-                        "max_force": row["max_force"]
+                        "max_force": row["max_force"],
+                        "sensor_label": sensor_label,
                     }
                     yield f"data: {json.dumps(data)}\n\n"
             else:
@@ -506,7 +518,7 @@ def round_details(round_id):
         cur = conn.execute("SELECT * FROM training_round WHERE id = ?", (round_id,))
         round_info = cur.fetchone()
 
-        cur = conn.execute("SELECT * FROM sensor_history WHERE training_round_id = ? ORDER BY timestamp ASC", (round_id,))
+        cur = conn.execute("SELECT * FROM sensor_history WHERE training_round_id = ? ORDER BY timestamp DESC ", (round_id,))
         sensor_events = cur.fetchall()
 
     processed_events = []
