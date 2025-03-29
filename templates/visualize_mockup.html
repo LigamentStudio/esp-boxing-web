@@ -42,7 +42,7 @@
     let forceLabel = document.getElementById("forceLabel");
     let latestEventSpan = document.getElementById("latestEvent");
     
-    if (!sensorEvent) {
+    if (!sensorEvent || forceValues === "ไม่อยู่ในช่วงที่กำหนด") {
       marker.style.display = "none";
       forceLabel.style.display = "none";
       latestEventSpan.textContent = "N/A";
@@ -57,18 +57,18 @@
     forceLabel.style.display = "block";
     
     // จัดตำแหน่งตัวระบุและป้ายตามประเภทของเหตุการณ์
-    if (sensorEvent === "Head") {
-      // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งหัวในรูปของคุณ
-      marker.style.top = "5%";
-      marker.style.left = "35%";
-      forceLabel.style.top = "5%";
-      forceLabel.style.left = "55%";
-    } else {  // "Body"
+    if (sensorEvent === "หัว") {
       // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งลำตัวในรูปของคุณ
       marker.style.top = "35%";
       marker.style.left = "48%";
       forceLabel.style.top = "35%";
       forceLabel.style.left = "55%";
+    } else {  // "Body"
+      // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งหัวในรูปของคุณ
+      marker.style.top = "45%";
+      marker.style.left = "65%";
+      forceLabel.style.top = "45%";
+      forceLabel.style.left = "72%";
     }
     
     // แสดงค่าจากเซ็นเซอร์แรง

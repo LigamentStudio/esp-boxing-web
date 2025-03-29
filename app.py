@@ -206,15 +206,12 @@ def on_message(client, userdata, msg):
                 map_force_position_json = [x if x < 2 else x - 1 for x in map_force_position_json]
                 # Map forces to positions
                 try:
-                    pos1 = forces_json[map_force_position_json[0]] if not reed_value else ''
+                    pos1 = forces_json[map_force_position_json[0]] if not reed_value else 0
                     pos2 = forces_json[map_force_position_json[1]]
                     pos3 = forces_json[map_force_position_json[2]]
                     pos4 = forces_json[map_force_position_json[3]]
-                    # Convert forces to integers
-                    pos1 = int(pos1) if pos1 is not None else None
-                    pos2 = int(pos2) if pos2 is not None else None
-                    pos3 = int(pos3) if pos3 is not None else None
-                    pos4 = int(pos4) if pos4 is not None else None
+
+                    print(f"Mapped forces: {pos1}, {pos2}, {pos3}, {pos4}")
 
                     # find the maximum force
                     max_force = max(pos1, pos2, pos3, pos4) if all(x is not None for x in [pos1, pos2, pos3, pos4]) else 0
@@ -227,7 +224,7 @@ def on_message(client, userdata, msg):
                     elif sensor_value_range_min3 <= max_force <= sensor_value_range_max3:
                         max_force_str += " [ ระดับ 3 ]"
                     else:
-                        max_force_str = "ไม่อยู่ในช่วงที่กำหนด"
+                        max_force_str = "Out of range"
                     
                     # Map max force to the corresponding position
                     if max_force == pos1:
@@ -245,9 +242,9 @@ def on_message(client, userdata, msg):
                     print("Mapping error:", e)
 
         # Record sensor data only if sensor id matches and a round is active.
-        if sensor_id_in_topic == config_sensor_id and current_training_round_id is not None:
+        if sensor_id_in_topic == config_sensor_id and current_training_round_id is not None and max_force_str != "Out of range":
             with get_db_connection() as conn:
-                conn.execute("INSERT INTO sensor_history (timestamp, reed_value, event, forces, max_force, training_round_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                conn.execute("INSERT INTO sensor_history (timestamp, reed_value, event, forces, max_force, training_round_id) VALUES (?, ?, ?, ?, ?, ?)",
                             (timestamp, reed_value, event, forces_json_str, max_force_str, current_training_round_id))
                 conn.commit()
             print(f"Recorded sensor data: {timestamp} - Reed:{reed_value} - {event} - {forces_json}")
@@ -304,9 +301,9 @@ def settings():
         sensor_value_range_min1 = request.form.get('sensor_value_range_min1', 100)
         sensor_value_range_min2 = request.form.get('sensor_value_range_min2', 200)
         sensor_value_range_min3 = request.form.get('sensor_value_range_min3', 300)
-        sensor_value_range_min1 = request.form.get('sensor_value_range_max1', 199)
-        sensor_value_range_min2 = request.form.get('sensor_value_range_max2', 299)
-        sensor_value_range_min3 = request.form.get('sensor_value_range_max3', 399)
+        sensor_value_range_max1 = request.form.get('sensor_value_range_max1', 199)
+        sensor_value_range_max2 = request.form.get('sensor_value_range_max2', 299)
+        sensor_value_range_max3 = request.form.get('sensor_value_range_max3', 399)
 
         # Process custom field definitions
         field_names = request.form.getlist('field_name[]')
@@ -555,4 +552,4 @@ def online():
 
 if __name__ == '__main__':
     init_db()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)
