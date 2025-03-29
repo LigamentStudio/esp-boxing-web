@@ -201,15 +201,13 @@ def on_message(client, userdata, msg):
             # Map forces to positions
             pos1, pos2, pos3, pos4 = None, None, None, None
             if map_force_position_json:
-                # Remap and convert forces to integers 0,1,3,4 -> 0,1,2,3
-                map_force_position_json = [int(x) for x in map_force_position_json]
-                map_force_position_json = [x if x < 2 else x - 1 for x in map_force_position_json]
-                # Map forces to positions
                 try:
                     pos1 = forces_json["A" + str(map_force_position_json[0])] if not reed_value else 0
                     pos2 = forces_json["A" + str(map_force_position_json[1])]
                     pos3 = forces_json["A" + str(map_force_position_json[2])]
                     pos4 = forces_json["A" + str(map_force_position_json[3])]
+
+                    print(f"Sensor positions: {pos1}, {pos2}, {pos3}, {pos4}")
 
                     # find the maximum force
                     max_force = max(pos1, pos2, pos3, pos4) if all(x is not None for x in [pos1, pos2, pos3, pos4]) else 0
@@ -292,8 +290,8 @@ def settings():
         sensor_label2 = request.form.get('sensor_label2', 'ลำตัว')
         sensor_label3 = request.form.get('sensor_label3', 'ท้อง')
         sensor_label4 = request.form.get('sensor_label4', 'ขา')
-        default_position_sensor1 = request.form.get('default_position_sensor1', '1')
-        default_position_sensor2 = request.form.get('default_position_sensor2', '2')
+        default_position_sensor1 = request.form.get('default_position_sensor1', '0')
+        default_position_sensor2 = request.form.get('default_position_sensor2', '1')
         default_position_sensor3 = request.form.get('default_position_sensor3', '3')
         default_position_sensor4 = request.form.get('default_position_sensor4', '4')
         sensor_value_range_min1 = request.form.get('sensor_value_range_min1', 100)
@@ -550,4 +548,4 @@ def online():
 
 if __name__ == '__main__':
     init_db()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5005, debug=True)

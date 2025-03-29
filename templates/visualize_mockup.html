@@ -3,15 +3,36 @@
 {% block content %}
 <h2>การแสดงผลแบบเรียลไทม์</h2>
 
-<div style="position: relative; display: inline-block;">
-  <!-- รูปเงามวย (PNG หรือ SVG) -->
-  <img src="{{ url_for('static', filename='images/gai.jpg') }}" alt="Boxing Silhouette" style="width: 300px;">
-  
-  <!-- ตัวระบุ: ตำแหน่งของมันจะเปลี่ยนแปลงตามเหตุการณ์ -->
-  <div id="marker" style="position: absolute; width: 20px; height: 20px; background: red; border-radius: 50%; display: none;"></div>
-  
-  <!-- ป้ายเพื่อแสดงค่าจากเซ็นเซอร์แรง -->
-  <div id="forceLabel" style="position: absolute; color: red; font-weight: bold; display: none;"></div>
+<div style="text-align: center;">
+  <div style="position: relative; display: inline-block; margin: 0 auto;">
+    <!-- รูปเงามวย (PNG หรือ SVG) -->
+    <img src="{{ url_for('static', filename='images/gai.jpg') }}" alt="Boxing Silhouette" style="width: 70%;">
+    
+    <!-- ตัวระบุ: ตำแหน่งของมันจะเปลี่ยนแปลงตามเหตุการณ์ -->
+    <div id="marker" style="
+      position: absolute; 
+      width: 40px; 
+      height: 40px; 
+      background: red; 
+      border-radius: 50%; 
+      display: none;
+      box-shadow: 0 0 0 3px white;
+      "></div>
+
+    <!-- ป้ายเพื่อแสดงค่าจากเซ็นเซอร์แรง -->
+    <div id="forceLabel" style="
+      position: absolute; 
+      color: red; 
+      font-weight: bold; 
+      display: none;
+      text-shadow: 
+        -1px -1px 0 #fff,
+        1px -1px 0 #fff,
+        -1px 1px 0 #fff,
+        1px 1px 0 #fff;
+      font-size: 18px;
+      "></div>
+  </div>
 </div>
 
 <p>เหตุการณ์ล่าสุด: <span id="latestEvent">N/A</span></p>
@@ -59,17 +80,23 @@
     // จัดตำแหน่งตัวระบุและป้ายตามประเภทของเหตุการณ์
     if (sensorEvent === "หัว") {
       // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งลำตัวในรูปของคุณ
-      marker.style.top = "35%";
-      marker.style.left = "48%";
-      forceLabel.style.top = "35%";
-      forceLabel.style.left = "55%";
-    } else {  // "Body"
+      marker.style.top = "18%";
+      marker.style.left = "66%";
+      forceLabel.style.top = "19%";
+      forceLabel.style.left = "53%";
+    } else if (sensorEvent === "ท้อง") {  // "Abdomen"
       // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งหัวในรูปของคุณ
       marker.style.top = "45%";
-      marker.style.left = "65%";
-      forceLabel.style.top = "45%";
-      forceLabel.style.left = "72%";
-    }
+      marker.style.left = "62%";
+      forceLabel.style.top = "46%";
+      forceLabel.style.left = "67%";
+    } else if (sensorEvent === "ลำตัว") {  // "Body"
+      // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งลำตัวในรูปของคุณ
+      marker.style.top = "34%";
+      marker.style.left = "48%";
+      forceLabel.style.top = "41%";
+      forceLabel.style.left = "45%";
+    } 
     
     // แสดงค่าจากเซ็นเซอร์แรง
     forceLabel.textContent = forceValues

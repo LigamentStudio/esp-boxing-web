@@ -20,7 +20,7 @@ timeout /t 3 /nobreak >nul
 
 REM Open the default web browser to the server URL
 echo Opening web browser...
-start "" "http://localhost:5000"
+start "" "http://localhost:5005"
 
 REM Pause to keep the window open
 pause

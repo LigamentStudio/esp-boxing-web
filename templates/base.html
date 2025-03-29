@@ -52,8 +52,13 @@
   </div>
   <footer class="footer bg-light py-3">
     <div class="container">
-      <div class="row">
-        <div class="col-md-6 text-left">
+      <div class="row align-items-center">
+        <div class="col-md-6 text-left d-flex align-items-center">
+          <a href="https://fastwork.co/user/ligamentstudio" target="_blank" rel="noopener noreferrer">
+            <img src="{{ url_for('static', filename='images/favicon/favicon-96x96.png') }}" 
+                 alt="ESP-BOXING" 
+                 style="width: 24px; height: 24px; margin-right: 10px;">
+          </a>
           <p class="mb-0">&copy; {{ current_year }} Ligament Studio.</p>
         </div>
       </div>

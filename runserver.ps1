@@ -18,7 +18,7 @@ Start-Sleep -Seconds 3
 
 # Automatically open the default web browser to the server URL
 Write-Host "Opening web browser..."
-Start-Process "http://localhost:5000"
+Start-Process "http://localhost:5005"
 
 # Optionally pause if you want the PowerShell window to remain open
 Read-Host -Prompt "Press Enter to exit"
