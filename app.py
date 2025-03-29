@@ -176,9 +176,9 @@ def on_message(client, userdata, msg):
         online_sensors[sensor_id_in_topic] = time.time()
 
         payload = json.loads(msg.payload.decode())
-        # Expected payload: {"reed": int, "critical": bool, "forces": [int, int, ...]}
+        # Expected payload: {"reed": int, "critical": bool, "forces": {"A0": int,"A1": int ...}}
         reed_value = payload.get("reed", None)
-        forces_json = payload.get("forces", [])
+        forces_json = payload.get("forces", {})
         forces_json_str = json.dumps(forces_json)
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print(f"Received message: {topic} - {payload}")
@@ -206,12 +206,10 @@ def on_message(client, userdata, msg):
                 map_force_position_json = [x if x < 2 else x - 1 for x in map_force_position_json]
                 # Map forces to positions
                 try:
-                    pos1 = forces_json[map_force_position_json[0]] if not reed_value else 0
-                    pos2 = forces_json[map_force_position_json[1]]
-                    pos3 = forces_json[map_force_position_json[2]]
-                    pos4 = forces_json[map_force_position_json[3]]
-
-                    print(f"Mapped forces: {pos1}, {pos2}, {pos3}, {pos4}")
+                    pos1 = forces_json["A" + str(map_force_position_json[0])] if not reed_value else 0
+                    pos2 = forces_json["A" + str(map_force_position_json[1])]
+                    pos3 = forces_json["A" + str(map_force_position_json[2])]
+                    pos4 = forces_json["A" + str(map_force_position_json[3])]
 
                     # find the maximum force
                     max_force = max(pos1, pos2, pos3, pos4) if all(x is not None for x in [pos1, pos2, pos3, pos4]) else 0
