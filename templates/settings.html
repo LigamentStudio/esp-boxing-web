@@ -84,6 +84,19 @@
     </div>
     {% endfor %}
 
+    <h3>การตั้งค่าเวลาการบันทึก</h3>
+    <div class="form-group">
+      <label for="timer_duration">ระยะเวลาตั้งค่าเริ่มต้น (นาที)</label>
+      <div class="input-group">
+        <input type="number" class="form-control" id="timer_duration" name="timer_duration" 
+               min="0" value="{{ config.get('timer_duration', '5') }}">
+        <div class="input-group-append">
+          <span class="input-group-text">นาที</span>
+        </div>
+      </div>
+      <small class="form-text text-muted">ระยะเวลาบันทึกเริ่มต้น (0 = ไม่จำกัดเวลา)</small>
+    </div>
+
   <button type="submit" class="btn btn-success mt-3">บันทึกการตั้งค่า</button>
 </form>
 {% endblock %}

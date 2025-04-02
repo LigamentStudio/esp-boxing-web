@@ -2,8 +2,8 @@ import os
 import time
 import json
 import threading
-from datetime import datetime
-from flask import Flask, Response, render_template, request, redirect, url_for, flash
+from datetime import datetime, timedelta
+from flask import Flask, Response, render_template, request, redirect, url_for, flash, jsonify
 import paho.mqtt.client as mqtt
 
 # Determine database type by checking if DATABASE_URL is set.
@@ -102,6 +102,7 @@ def init_db():
         insert_config(conn, 'sensor_value_range_max1', 199)
         insert_config(conn, 'sensor_value_range_max2', 299)
         insert_config(conn, 'sensor_value_range_max3', 399)
+        insert_config(conn, 'timer_duration', '5')
         # Default custom fields (empty array)
         insert_config(conn, 'custom_fields', '[]')
         
@@ -274,6 +275,54 @@ def inject_current_year():
     from datetime import datetime
     return {'current_year': datetime.now().year}
 
+def check_timer_expired():
+    """Check if the current training session timer has expired"""
+    # If no active training, return False
+    if current_training_round_id is None:
+        return False
+        
+    with get_db_connection() as conn:
+        # Get the training end time from config
+        cur = conn.execute("SELECT stop_time FROM training_round WHERE id = (?)", (current_training_round_id,))
+        row = cur.fetchone()
+        
+        # If no stop_time or it's null/empty, return False (unlimited time)
+        if not row or not row['stop_time']:
+            return False
+            
+        end_time_str = row['stop_time']
+        
+        # Check if current time is past the end time
+        try:
+            end_time = datetime.strptime(end_time_str, '%Y-%m-%d %H:%M:%S')
+            if datetime.now() >= end_time:
+                return True
+        except (ValueError, TypeError):
+            # If we can't parse the date, assume no expiration
+            return False
+            
+    return False
+
+def stop_training():
+    """Stop the current training session and update database"""
+    global current_training_round_id
+    if current_training_round_id is None:
+        return False
+        
+    stop_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    with get_db_connection() as conn:
+        # Only update stop_time if it's not already set (not auto-set by timer)
+        conn.execute("""
+            UPDATE training_round 
+            SET stop_time = CASE WHEN stop_time IS NULL THEN ? ELSE stop_time END 
+            WHERE id = ?
+        """, (stop_time, current_training_round_id))
+        conn.commit()
+    
+    # Reset the global training ID
+    current_training_round_id = None
+    return True
+
 ########################################
 # Routes
 ########################################
@@ -300,6 +349,8 @@ def settings():
         sensor_value_range_max1 = request.form.get('sensor_value_range_max1', 199)
         sensor_value_range_max2 = request.form.get('sensor_value_range_max2', 299)
         sensor_value_range_max3 = request.form.get('sensor_value_range_max3', 399)
+
+        timer_duration = request.form.get('timer_duration', '5')
 
         # Process custom field definitions
         field_names = request.form.getlist('field_name[]')
@@ -333,7 +384,9 @@ def settings():
             conn.execute(query_sql, ('sensor_value_range_max1', sensor_value_range_max1))
             conn.execute(query_sql, ('sensor_value_range_max2', sensor_value_range_max2))
             conn.execute(query_sql, ('sensor_value_range_max3', sensor_value_range_max3))
+            conn.execute(query_sql, ('timer_duration', timer_duration))
             conn.execute(query_sql, ('custom_fields', custom_fields_json))
+
             conn.commit()
         flash("MQTT configuration and custom fields updated successfully!")
         return redirect(url_for('settings'))
@@ -345,6 +398,46 @@ def settings():
             custom_fields = json.loads(config.get('custom_fields', '[]'))
         return render_template('settings.html', config=config, custom_fields=custom_fields)
 
+@app.route('/get_remaining_time')
+def get_remaining_time():
+    try:
+        with get_db_connection() as conn:
+            # Check if training is active first
+            if current_training_round_id is None:
+                print("Debug: No active training session")
+                return jsonify({'remaining_seconds': 0, 'status': 'no_active_session'})
+                
+            # Get the training end time
+            cur = conn.execute("SELECT stop_time FROM training_round WHERE id = (?)", (current_training_round_id,))
+            row = cur.fetchone()
+            
+            if not row or not row['stop_time']:
+                print("Debug: No stop_time in training round")
+                return jsonify({'remaining_seconds': 0, 'status': 'no_timer_config'})
+                
+            end_time_str = row['stop_time']
+            
+            # Calculate remaining time
+            try:
+                end_time = datetime.strptime(end_time_str, '%Y-%m-%d %H:%M:%S')
+                now = datetime.now()
+                remaining = max(0, (end_time - now).total_seconds())
+                
+                print(f"Debug: Timer calculation - End: {end_time}, Now: {now}, Remaining: {remaining}")
+                return jsonify({
+                    'remaining_seconds': int(remaining), 
+                    'status': 'active',
+                    'end_time': end_time_str,
+                    'current_time': now.strftime('%Y-%m-%d %H:%M:%S')
+                })
+            except (ValueError, TypeError):
+                print("Debug: Could not parse stop_time date format")
+                return jsonify({'remaining_seconds': 0, 'status': 'invalid_date_format'})
+            
+    except Exception as e:
+        print(f"Debug: Error in get_remaining_time: {e}")
+        return jsonify({'remaining_seconds': 0, 'status': 'error', 'message': str(e)})
+        
 @app.route('/record', methods=['GET', 'POST'])
 def record():
     global current_training_round_id, online_sensors
@@ -353,6 +446,9 @@ def record():
         # Fetch training details
         training_name = request.form.get('training_name', '').strip()
         sensor_id = request.form.get('sensor_id', '').strip()
+
+        # Get timer duration
+        timer_duration = request.form.get('timer_duration', '0')
 
         # Fetch sensor positions
         sensor_label1 = request.form.get('sensor_label1', '')
@@ -386,13 +482,31 @@ def record():
         # Start training session
         if current_training_round_id is None:
             start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            start_datetime = datetime.now()
+            
+            # Handle timer_duration to auto-calculate stop_time if needed
+            stop_time = None
+            if timer_duration and int(timer_duration) > 0:
+                # Calculate end time by adding minutes to start time
+                end_datetime = start_datetime + timedelta(minutes=int(timer_duration))
+                stop_time = end_datetime.strftime('%Y-%m-%d %H:%M:%S')
+            
             with get_db_connection() as conn:
-                query = (
-                    "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time) VALUES (?, ?, ?, ?, ?)"
-                    if USE_SQLITE else
-                    "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time) VALUES (%s, %s, %s, %s, %s) RETURNING id"
-                )
-                params = (training_name, sensor_id, json.dumps(map_force_position), custom_values_json, start_time)
+                if stop_time:
+                    query = (
+                        "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time, stop_time) VALUES (?, ?, ?, ?, ?, ?)"
+                        if USE_SQLITE else
+                        "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time, stop_time) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id"
+                    )
+                    params = (training_name, sensor_id, json.dumps(map_force_position), custom_values_json, start_time, stop_time)
+                else:
+                    query = (
+                        "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time) VALUES (?, ?, ?, ?, ?)"
+                        if USE_SQLITE else
+                        "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time) VALUES (%s, %s, %s, %s, %s) RETURNING id"
+                    )
+                    params = (training_name, sensor_id, json.dumps(map_force_position), custom_values_json, start_time)
+                
                 cur = conn.execute(query, params)
                 conn.commit()
                 current_training_round_id = cur.lastrowid if USE_SQLITE else cur.fetchone()['id']
@@ -415,17 +529,10 @@ def record():
 
 @app.route('/stop', methods=['POST'])
 def stop():
-    global current_training_round_id
-    if current_training_round_id is None:
+    if stop_training():
+        flash("บันทึกการฝึกซ้อมเสร็จสิ้นแล้ว!")
+    else:
         flash("No training round in progress!")
-        return redirect(url_for('record'))
-    
-    stop_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    with get_db_connection() as conn:
-        conn.execute("UPDATE training_round SET stop_time = ? WHERE id = ?", (stop_time, current_training_round_id))
-        conn.commit()
-    flash("บันทึกการฝึกซ้อมเสร็จสิ้นแล้ว!")
-    current_training_round_id = None
     return redirect(url_for('history'))
 
 @app.route('/stream')
@@ -441,10 +548,19 @@ def stream():
         config.get('sensor_label3', 'ท้อง'),
         config.get('sensor_label4', 'ขา')
     ]
+    
     def event_stream():
         last_sent_id = 0
         while True:
+            # Check if timer has expired and stop the training if needed
+            if current_training_round_id is not None and check_timer_expired():
+                # Auto-stop the training session
+                stop_training()
+                # Send a special event to notify frontend
+                yield f"data: {json.dumps({'timer_expired': True})}\n\n"
+                
             if current_training_round_id is not None:
+                # Your existing code for fetching and sending events
                 with get_db_connection() as conn:
                     cur = conn.execute("""
                         SELECT id, timestamp, reed_value, event, forces, max_force

@@ -4,96 +4,120 @@
 <h2>บันทึกรอบการฝึก</h2>
 
 {% if training_active %}
-  <p>ขณะนี้กำลังดำเนินการฝึกอยู่</p>
-  <form method="POST" action="{{ url_for('stop') }}">
-    <button type="submit" class="btn btn-danger">หยุดและบันทึกรอบ</button>
-  </form>
-  <p><a href="{{ url_for('visualize_mockup') }}" class="btn btn-info mt-3">ดูการแสดงผลแบบเรียลไทม์</a></p>
+<p>ขณะนี้กำลังดำเนินการฝึกอยู่</p>
+<!-- Make sure the timer container has clear styling -->
+<div id="timer_container" class="alert alert-info mb-3" style="font-size: 1.2em; font-weight: bold;">
+  <strong>เวลาที่เหลือ:</strong> <span id="timer_display" style="margin-left: 10px;">00:00</span>
+</div>
+<form method="POST" action="{{ url_for('stop') }}">
+  <button type="submit" class="btn btn-danger">หยุดและบันทึกรอบ</button>
+</form>
+<p><a href="{{ url_for('visualize_mockup') }}" class="btn btn-info mt-3">ดูการแสดงผลแบบเรียลไทม์</a></p>
 {% else %}
-  <form method="POST" onsubmit="return validateForm()">
-    <div class="form-group">
-      <label for="sensor_id">รหัสโมดูล</label>
-      <input type="text" class="form-control" id="sensor_id" name="sensor_id" value="{{ config.sensor_id }}" list="onlineSensors">
-      <datalist id="onlineSensors">
-        {% for sensor in online_sensors %}
-          <option value="{{ sensor.sensor_id }}">{{ sensor.sensor_id }} (พบล่าสุด: {{ sensor.last_seen }})</option>
-        {% endfor %}
-      </datalist>
-    </div>
-    <div class="form-group">
-      <label for="training_name">ชื่อผู้ฝึก</label>
-      <input type="text" class="form-control" id="training_name" name="training_name" value="{{ config.training_name }}">
-    </div>
-    <div class="form-group">
-      <label for="branch">สาขา</label>
-      <input type="text" class="form-control" id="branch" name="branch" value="{{ config.branch }}">
-    </div>
+<form method="POST" onsubmit="return validateForm()">
+  <div class="form-group">
+    <label for="sensor_id">รหัสโมดูล</label>
+    <input type="text" class="form-control" id="sensor_id" name="sensor_id" value="{{ config.get('sensor_id', '') }}"
+      list="onlineSensors">
+    <datalist id="onlineSensors">
+      {% for sensor in online_sensors %}
+      <option value="{{ sensor.sensor_id }}">{{ sensor.sensor_id }} (พบล่าสุด: {{ sensor.last_seen }})</option>
+      {% endfor %}
+    </datalist>
+  </div>
+  <div class="form-group">
+    <label for="training_name">ชื่อผู้ฝึก</label>
+    <input type="text" class="form-control" id="training_name" name="training_name"
+      value="{{ config.get('training_name', '') }}">
+  </div>
+  <div class="form-group">
+    <label for="branch">สาขา</label>
+    <input type="text" class="form-control" id="branch" name="branch" value="{{ config.get('branch', '') }}">
+  </div>
 
-    {% for field in custom_fields %}
-    <div class="form-group">
-      <label for="{{ field.name }}">{{ field.label }}</label>
-      <input type="text" class="form-control" id="{{ field.name }}" name="{{ field.name }}" value="{{ field.default }}">
+  <!-- Timer Duration Field -->
+  <div class="form-group">
+    <label for="timer_duration">ระยะเวลา (นาที)</label>
+    <div class="input-group">
+      <input type="number" class="form-control" id="timer_duration" name="timer_duration" min="0"
+        value="{{ config.get('timer_duration', '5') }}">
+      <div class="input-group-append">
+        <span class="input-group-text">นาที</span>
+      </div>
     </div>
-    {% endfor %}
+    <small class="form-text text-muted">ตั้งค่าเป็น 0 เพื่อไม่กำหนดเวลา</small>
+  </div>
 
-    <div class="form-group">
-      <label for="recorder_name">ชื่อผู้บันทึก</label>
-      <input type="text" class="form-control" id="recorder_name" name="recorder_name" value="{{ config.recorder_name }}">
-    </div>
+  {% for field in custom_fields %}
+  <div class="form-group">
+    <label for="{{ field.name }}">{{ field.label }}</label>
+    <input type="text" class="form-control" id="{{ field.name }}" name="{{ field.name }}" value="{{ field.default }}">
+  </div>
+  {% endfor %}
 
-    <h4>ตั้งค่าตำแหน่งเซ็นเซอร์</h4>
-    {% set sensor_options = ['0', '1', '3', '4'] %}
-    {% set sensor_labels = {
-      'sensor_label2': config.get('sensor_label2', 'ลำตัว'),
-      'sensor_label3': config.get('sensor_label3', 'ท้อง'),
-      'sensor_label4': config.get('sensor_label4', 'ขา')
-    } %}
-    {% set sensor_positions = {
-      'sensor_label1': config.get('default_position_sensor1', ''),
-      'sensor_label2': config.get('default_position_sensor2', ''),
-      'sensor_label3': config.get('default_position_sensor3', ''),
-      'sensor_label4': config.get('default_position_sensor4', '')
-    } %}
+  <div class="form-group">
+    <label for="recorder_name">ชื่อผู้บันทึก</label>
+    <input type="text" class="form-control" id="recorder_name" name="recorder_name"
+      value="{{ config.get('recorder_name', '') }}">
+  </div>
 
-    <div id="warningMessage" class="alert alert-warning" style="display: none;">
-      ⚠ กรุณาเลือกเซ็นเซอร์ให้ครบทุกตำแหน่ง!
-    </div>
+  <h4>ตั้งค่าตำแหน่งเซ็นเซอร์</h4>
+  {% set sensor_options = ['0', '1', '3', '4'] %}
+  {% set sensor_labels = {
+  'sensor_label2': config.get('sensor_label2', 'ลำตัว'),
+  'sensor_label3': config.get('sensor_label3', 'ท้อง'),
+  'sensor_label4': config.get('sensor_label4', 'ขา')
+  } %}
+  {% set sensor_positions = {
+  'sensor_label1': config.get('default_position_sensor1', ''),
+  'sensor_label2': config.get('default_position_sensor2', ''),
+  'sensor_label3': config.get('default_position_sensor3', ''),
+  'sensor_label4': config.get('default_position_sensor4', '')
+  } %}
 
-    <div class="form-group">
-      <label for="sensor_label1">{{ config.get('sensor_label1', 'หัว') }}</label>
-      <select class="form-control sensor-select" id="sensor_label1" name="sensor_label1">
-        <option value="">-- ไม่เลือก --</option>
-        {% for sensor in sensor_options %}
-          <option value="{{ sensor }}" label="A{{ sensor }}" {% if sensor_positions['sensor_label1'] == sensor %}selected{% endif %}>
-            {{ sensor }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
+  <div id="warningMessage" class="alert alert-warning" style="display: none;">
+    ⚠ กรุณาเลือกเซ็นเซอร์ให้ครบทุกตำแหน่ง!
+  </div>
 
-    {% for key, label in sensor_labels.items() %}
-    <div class="form-group">
-      <label for="{{ key }}">{{ label }}</label>
-      <select class="form-control sensor-select sensor-select-n" id="{{ key }}" name="{{ key }}">
-        <option value="">-- ไม่เลือก --</option>
-        {% for sensor in sensor_options %}
-          <option value="{{ sensor }}" label="A{{ sensor }}" {% if sensor_positions[key] == sensor %}selected{% endif %}>
-            {{ sensor }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
-    {% endfor %}
+  <div class="form-group">
+    <label for="sensor_label1">{{ config.get('sensor_label1', 'หัว') }}</label>
+    <select class="form-control sensor-select" id="sensor_label1" name="sensor_label1">
+      <option value="">-- ไม่เลือก --</option>
+      {% for sensor in sensor_options %}
+      <option value="{{ sensor }}" label="A{{ sensor }}" {% if sensor_positions['sensor_label1']==sensor %}selected{%
+        endif %}>
+        {{ sensor }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
 
-    <button type="submit" class="btn btn-success">เริ่มบันทึกรอบ</button>
-  </form>
+  {% for key, label in sensor_labels.items() %}
+  <div class="form-group">
+    <label for="{{ key }}">{{ label }}</label>
+    <select class="form-control sensor-select sensor-select-n" id="{{ key }}" name="{{ key }}">
+      <option value="">-- ไม่เลือก --</option>
+      {% for sensor in sensor_options %}
+      <option value="{{ sensor }}" label="A{{ sensor }}" {% if sensor_positions[key]==sensor %}selected{% endif %}>
+        {{ sensor }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endfor %}
 
-  <p>ไม่มีการฝึกที่กำลังดำเนินการ</p>
+  <button type="submit" class="btn btn-success">เริ่มบันทึกรอบ</button>
+</form>
+
+<p>ไม่มีการฝึกที่กำลังดำเนินการ</p>
 {% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+  let timerInterval;
+  let remainingSeconds = 0;
+
   function validateForm() {
     let selections = new Set();
     let isValid = true;
@@ -105,6 +129,14 @@
       }
       selections.add(value);
     });
+
+    if (!isValid) {
+      document.getElementById('warningMessage').style.display = 'block';
+      return false;
+    }
+
+    document.getElementById('warningMessage').style.display = 'none';
+    return true;
   }
 
   function updateSensorOptions() {
@@ -125,11 +157,77 @@
     });
   }
 
+  function initializeTimer() {
+    // Get timer duration from backend
+    fetch('/get_remaining_time')
+      .then(response => response.json())
+      .then(data => {
+        console.log("Timer data received:", data);  // Add debug logging
+        if (data.remaining_seconds > 0) {
+          remainingSeconds = data.remaining_seconds;
+          document.getElementById('timer_container').style.display = 'block';  // Ensure visible
+          updateTimerDisplay();
+
+          // Clear any existing interval before setting a new one
+          if (timerInterval) {
+            clearInterval(timerInterval);
+          }
+
+          timerInterval = setInterval(updateTimer, 1000);
+          console.log("Timer started with", remainingSeconds, "seconds remaining");
+        } else {
+          document.getElementById('timer_container').style.display = 'none';
+          console.log("No timer active or time expired");
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching timer data:', error);
+      });
+  }
+
+  function updateTimer() {
+    remainingSeconds--;
+    updateTimerDisplay();
+
+    if (remainingSeconds <= 0) {
+      clearInterval(timerInterval);
+      // Automatically submit the stop form when time is up
+      document.querySelector('form[action*="stop"]').submit();
+    }
+  }
+
+  function updateTimerDisplay() {
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    document.getElementById('timer_display').textContent = formattedTime;
+
+    // Change color when less than 1 minute remains
+    if (remainingSeconds < 60) {
+      document.getElementById('timer_display').style.color = 'red';
+      document.getElementById('timer_display').style.fontWeight = 'bold';
+    }
+  }
+
   document.querySelectorAll('.sensor-select-n').forEach(select => {
     select.addEventListener('change', updateSensorOptions);
   });
 
-  window.onload = updateSensorOptions;
 </script>
+{% if training_active %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log("Page loaded, initializing timer...");
+    initializeTimer();
+  });
+</script>
+{% else %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    updateSensorOptions();
+  });
+</script>
+{% endif %}
 
 {% endblock %}

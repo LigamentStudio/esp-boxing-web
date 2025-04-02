@@ -3,11 +3,17 @@
 {% block content %}
 <h2>การแสดงผลแบบเรียลไทม์</h2>
 
+<!-- Add Timer Display -->
+<div id="timer_container" class="alert alert-info mb-3" style="display: none;">
+  <strong>เวลาที่เหลือ:</strong> <span id="timer_display"
+    style="font-size: 1.2em; font-weight: bold; margin-left: 10px;">00:00</span>
+</div>
+
 <div style="text-align: center;">
   <div style="position: relative; display: inline-block; margin: 0 auto;">
     <!-- รูปเงามวย (PNG หรือ SVG) -->
     <img src="{{ url_for('static', filename='images/gai.jpg') }}" alt="Boxing Silhouette" style="width: 70%;">
-    
+
     <!-- ตัวระบุ: ตำแหน่งของมันจะเปลี่ยนแปลงตามเหตุการณ์ -->
     <div id="marker" style="
       position: absolute; 
@@ -38,45 +44,109 @@
 <p>เหตุการณ์ล่าสุด: <span id="latestEvent">N/A</span></p>
 
 {% if training_active %}
-  <p>ขณะนี้มีการฝึกรอบอยู่</p>
-  <form method="POST" action="{{ url_for('stop') }}">
-    <button type="submit" class="btn btn-danger">หยุดและบันทึกรอบ</button>
-  </form>
+<p>ขณะนี้มีการฝึกรอบอยู่</p>
+<form method="POST" action="{{ url_for('stop') }}">
+  <button type="submit" class="btn btn-danger">หยุดและบันทึกรอบ</button>
+</form>
 {% else %}
-  <p>ไม่มีการฝึกรอบที่กำลังดำเนินการ</p>
+<p>ไม่มีการฝึกรอบที่กำลังดำเนินการ</p>
 {% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+  // Timer variables
+  let timerInterval;
+  let remainingSeconds = 0;
+
+  // Initialize timer function
+  function initializeTimer() {
+    fetch('/get_remaining_time')
+      .then(response => response.json())
+      .then(data => {
+        console.log("Timer data received:", data); // Debug logging
+
+        if (data.remaining_seconds > 0) {
+          remainingSeconds = data.remaining_seconds;
+          document.getElementById('timer_container').style.display = 'block';
+          updateTimerDisplay();
+
+          if (timerInterval) {
+            clearInterval(timerInterval);
+          }
+
+          timerInterval = setInterval(updateTimer, 1000);
+          console.log("Timer started with", remainingSeconds, "seconds remaining");
+        } else {
+          document.getElementById('timer_container').style.display = 'none';
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching timer data:', error);
+      });
+  }
+
+  function updateTimer() {
+    remainingSeconds--;
+    updateTimerDisplay();
+
+    if (remainingSeconds <= 0) {
+      clearInterval(timerInterval);
+      // Timer will be handled by the SSE event
+    }
+  }
+
+  function updateTimerDisplay() {
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    const timerDisplay = document.getElementById('timer_display');
+    timerDisplay.textContent = formattedTime;
+
+    // Change color when less than 1 minute remains
+    if (remainingSeconds < 60) {
+      timerDisplay.style.color = 'red';
+      timerDisplay.style.fontWeight = 'bold';
+    }
+  }
+
   // เปิดการเชื่อมต่อ SSE เพื่อรับการอัปเดตเซ็นเซอร์แบบเรียลไทม์
   const eventSource = new EventSource("/stream");
-  
-  eventSource.onmessage = function(event) {
+
+  eventSource.onmessage = function (event) {
     let data = JSON.parse(event.data);
-    // ถ้าเป็น heartbeat ให้ข้ามไป
+
+    // ตรวจสอบว่าเวลาหมดอายุหรือไม่
+    if (data.timer_expired) {
+      alert("เวลาบันทึกได้สิ้นสุดแล้ว!");
+      window.location.href = "{{ url_for('history') }}";
+      return;
+    }
+
+    // ตรวจสอบว่าเป็นการอัปเดตเซ็นเซอร์หรือไม่
     if (data.heartbeat) return;
-    
+
     let sensorEvent = data.event;
     let forceValues = data.max_force;
     let marker = document.getElementById("marker");
     let forceLabel = document.getElementById("forceLabel");
     let latestEventSpan = document.getElementById("latestEvent");
-    
+
     if (!sensorEvent || forceValues === "ไม่อยู่ในช่วงที่กำหนด") {
       marker.style.display = "none";
       forceLabel.style.display = "none";
       latestEventSpan.textContent = "N/A";
       return;
     }
-    
+
     // อัปเดตข้อความเหตุการณ์
     latestEventSpan.textContent = sensorEvent;
-    
+
     // แสดงตัวระบุและป้าย
     marker.style.display = "block";
     forceLabel.style.display = "block";
-    
+
     // จัดตำแหน่งตัวระบุและป้ายตามประเภทของเหตุการณ์
     if (sensorEvent === data.sensor_label[0]) {
       // ปรับค่าต่างๆเหล่านี้ให้ตรงกับตำแหน่งลำตัวในรูปของคุณ
@@ -103,13 +173,20 @@
       forceLabel.style.top = "61%";
       forceLabel.style.left = "53%";
     }
-    
+
     // แสดงค่าจากเซ็นเซอร์แรง
     forceLabel.textContent = forceValues
   };
 
-  eventSource.onerror = function(err) {
+  eventSource.onerror = function (err) {
     console.error("ข้อผิดพลาด SSE:", err);
   };
 </script>
+{% if training_active %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    initializeTimer();
+  });
+</script>
+{% endif %}
 {% endblock %}
