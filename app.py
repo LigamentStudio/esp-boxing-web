@@ -203,7 +203,7 @@ def on_message(client, userdata, msg):
             pos1, pos2, pos3, pos4 = None, None, None, None
             if map_force_position_json:
                 try:
-                    pos1 = forces_json["A" + map_force_position_json[0]] if not reed_value else 0
+                    pos1 = forces_json["A" + map_force_position_json[0]] if not reed_value and map_force_position_json[0] != '' else 0
                     pos2 = forces_json["A" + map_force_position_json[1]] if map_force_position_json[1] != '' else 0
                     pos3 = forces_json["A" + map_force_position_json[2]] if map_force_position_json[2] != '' else 0
                     pos4 = forces_json["A" + map_force_position_json[3]] if map_force_position_json[3] != '' else 0

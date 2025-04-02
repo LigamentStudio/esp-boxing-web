@@ -62,10 +62,6 @@
   'sensor_label4': config.get('default_position_sensor4', '')
   } %}
 
-  <div id="warningMessage" class="alert alert-warning" style="display: none;">
-    ⚠ กรุณาเลือกเซ็นเซอร์ให้ครบทุกตำแหน่ง!
-  </div>
-
   <div class="form-group">
     <label for="sensor_label1">{{ config.get('sensor_label1', 'หัว') }}</label>
     <select class="form-control sensor-select" id="sensor_label1" name="sensor_label1">
@@ -129,13 +125,6 @@
       }
       selections.add(value);
     });
-
-    if (!isValid) {
-      document.getElementById('warningMessage').style.display = 'block';
-      return false;
-    }
-
-    document.getElementById('warningMessage').style.display = 'none';
     return true;
   }
 
