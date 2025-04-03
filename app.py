@@ -112,6 +112,7 @@ def init_db():
                 CREATE TABLE IF NOT EXISTS training_round (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     training_name TEXT,
+                    recorder_name TEXT,
                     sensor_id TEXT,
                     map_force_position TEXT,
                     custom_fields TEXT,
@@ -136,6 +137,7 @@ def init_db():
                 CREATE TABLE IF NOT EXISTS training_round (
                     id SERIAL PRIMARY KEY,
                     training_name TEXT,
+                    recorder_name TEXT,
                     sensor_id TEXT,
                     map_force_position TEXT,
                     custom_fields TEXT,
@@ -249,6 +251,17 @@ def on_message(client, userdata, msg):
         print("Error in on_message:", e)
 
 def mqtt_thread():
+    db_ready = False
+    while not db_ready:
+        try:
+            with get_db_connection() as conn:
+                cur = conn.execute("SELECT 1 FROM config LIMIT 1")
+                db_ready = True
+                print("Database initialized, MQTT thread starting...")
+        except Exception as e:
+            print("Waiting for database to be initialized...")
+            time.sleep(2)  # Wait 2 seconds before trying again
+    
     with get_db_connection() as conn:
         cur = conn.execute("SELECT value FROM config WHERE key = 'mqtt_broker'")
         row = cur.fetchone()
@@ -265,10 +278,6 @@ def mqtt_thread():
     client.on_message = on_message
     client.connect(broker, port, 60)
     client.loop_forever()
-
-mqtt_thread_instance = threading.Thread(target=mqtt_thread)
-mqtt_thread_instance.daemon = True
-mqtt_thread_instance.start()
 
 @app.context_processor
 def inject_current_year():
@@ -445,6 +454,7 @@ def record():
     if request.method == 'POST':
         # Fetch training details
         training_name = request.form.get('training_name', '').strip()
+        recorder_name = request.form.get('recorder_name', '').strip()
         sensor_id = request.form.get('sensor_id', '').strip()
 
         # Get timer duration
@@ -494,18 +504,18 @@ def record():
             with get_db_connection() as conn:
                 if stop_time:
                     query = (
-                        "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time, stop_time) VALUES (?, ?, ?, ?, ?, ?)"
+                        "INSERT INTO training_round (training_name, recorder_name, sensor_id, map_force_position, custom_fields, start_time, stop_time) VALUES (?, ?, ?, ?, ?, ?, ?)"
                         if USE_SQLITE else
-                        "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time, stop_time) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id"
+                        "INSERT INTO training_round (training_name, recorder_name, sensor_id, map_force_position, custom_fields, start_time, stop_time) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id"
                     )
-                    params = (training_name, sensor_id, json.dumps(map_force_position), custom_values_json, start_time, stop_time)
+                    params = (training_name, recorder_name, sensor_id, json.dumps(map_force_position), custom_values_json, start_time, stop_time)
                 else:
                     query = (
-                        "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time) VALUES (?, ?, ?, ?, ?)"
+                        "INSERT INTO training_round (training_name, recorder_name, sensor_id, map_force_position, custom_fields, start_time) VALUES (?, ?, ?, ?, ?, ?, ?)"
                         if USE_SQLITE else
-                        "INSERT INTO training_round (training_name, sensor_id, map_force_position, custom_fields, start_time) VALUES (%s, %s, %s, %s, %s) RETURNING id"
+                        "INSERT INTO training_round (training_name, recorder_name, sensor_id, map_force_position, custom_fields, start_time) VALUES (%s, %s,  %s, %s, %s, %s) RETURNING id"
                     )
-                    params = (training_name, sensor_id, json.dumps(map_force_position), custom_values_json, start_time)
+                    params = (training_name, recorder_name, sensor_id, json.dumps(map_force_position), custom_values_json, start_time)
                 
                 cur = conn.execute(query, params)
                 conn.commit()
@@ -676,4 +686,9 @@ def online():
 
 if __name__ == '__main__':
     init_db()
+
+    mqtt_thread_instance = threading.Thread(target=mqtt_thread)
+    mqtt_thread_instance.daemon = True
+    mqtt_thread_instance.start()
+
     app.run(host="0.0.0.0", port=5005)
